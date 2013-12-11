@@ -115,7 +115,7 @@
                                  (required-portion gf args)))
 	   (emfun (gethash generalizers (emf-table gf) nil)))
       (if emfun
-	  (funcall emfun args)
+	  (sb-pcl::invoke-emf emfun args)
 	  (slow-method-lookup gf args generalizers)))))
 
 (defun slow-method-lookup (gf args generalizers)
@@ -126,10 +126,15 @@
 	(let* ((emfun
 		(compute-effective-method-function gf applicable-methods)))
 	  (setf (gethash generalizers (emf-table gf)) emfun)
-	  (funcall emfun args))
-	(funcall (compute-effective-method-function
-                  gf (sb-mop:compute-applicable-methods gf args))
-                 args))))
+	  (sb-pcl::invoke-emf emfun args))
+	(sb-pcl::invoke-emf (compute-effective-method-function
+                             gf (sb-mop:compute-applicable-methods gf args))
+                            args))))
+
+(defun compute-effective-method-function (gf methods)
+  (let* ((mc (sb-mop:generic-function-method-combination gf))
+         (em (sb-mop:compute-effective-method gf mc methods)))
+    (sb-pcl::make-effective-method-function gf em)))
 
 ;; new, not in closette
 (defgeneric generalizer-of-using-class (generic-function object))
@@ -234,70 +239,3 @@
 (defmethod specializer< ((c1 class) (c2 sb-mop:eql-specializer) generalizer)
   (declare (ignore generalizer))
   '>)
-
-;;;; method combination
-
-;;; FIXME: this is actually only standard method combination.
-
-;; unchanged from closette
-(defun primary-method-p (method)
-  (null (method-qualifiers method)))
-(defun before-method-p (method)
-  (equal '(:before) (method-qualifiers method)))
-(defun after-method-p (method)
-  (equal '(:after) (method-qualifiers method)))
-(defun around-method-p (method)
-  (equal '(:around) (method-qualifiers method)))
-
-;;; (defun compute-effective-method-function (gf methods)
-;;;   (let ((primaries (remove-if-not #'primary-method-p methods))
-;;;         (around (find-if #'around-method-p methods)))
-;;;     (when (null primaries)
-;;;       (error "No primary methods for the~@
-;;;              generic function ~S." gf))
-;;;     (if around
-;;;         (let ((next-emfun
-;;; 	       (compute-effective-method-function gf (remove around methods))))
-;;;           #'(lambda (args)
-;;;               (funcall (method-function around) args next-emfun)))
-;;;         (let ((next-emfun (compute-primary-emfun (cdr primaries)))
-;;; 	      (befores (remove-if-not #'before-method-p methods))
-;;; 	      (reverse-afters
-;;; 	       (reverse (remove-if-not #'after-method-p methods))))
-;;;           #'(lambda (args)
-;;;               (dolist (before befores)
-;;;                 (funcall (method-function before) args nil))
-;;;               (multiple-value-prog1
-;;; 		  (funcall (method-function (car primaries)) args next-emfun)
-;;;                 (dolist (after reverse-afters)
-;;;                   (funcall (method-function after) args nil))))))))
-
-(defun compute-effective-method-function (gf methods)
-  (let* ((primaries
-	  (or (remove-if-not #'primary-method-p methods)
-	      (error "No primary methods for the generic function ~S." gf)))
-	 (primary-emf
-	  (let* ((nexts (mapcar #'sb-mop:method-function (cdr primaries)))
-		 (befores (remove-if-not #'before-method-p methods))
-		 (reverse-afters
-		  (reverse (remove-if-not #'after-method-p methods))))
-	    #'(lambda (args)
-		(dolist (before befores)
-		  (funcall (sb-mop:method-function before) args nil))
-		(multiple-value-prog1
-		    (funcall (sb-mop:method-function (car primaries))
-			     args
-			     nexts)
-		  (dolist (after reverse-afters)
-		    (funcall (sb-mop:method-function after) args nil))))))
-	 (arounds (remove-if-not #'around-method-p methods)))
-    (if arounds
-        (let ((next (append (mapcar #'sb-mop:method-function (cdr arounds))
-			    (lambda (args nexts)
-			      (declare (ignore nexts))
-			      (funcall primary-emf args)))))
-	  (lambda (args)
-	    (funcall (sb-mop:method-function (car arounds))
-		     args
-		     next)))
-        primary-emf)))
