@@ -1,3 +1,5 @@
+(in-package "SPECIALIZABLE")
+
 ;;;; CONS-SPECIALIZER example
 (defclass cons-specializer (extended-specializer)
   ((car :initarg :car :reader %car)))
@@ -35,7 +37,8 @@
        (eql (car obj) (%car specializer))))
 ;;; but this one does: it doesn't look like it here, but at issue is
 ;;; who is responsible for the SPECIALIZER< method for two distinct
-;;; user-defined specializers.
+;;; user-defined specializers.  Also consider a symbol generalizer
+;;; being used to compare two class specializers.
 (defmethod specializer< ((s1 cons-specializer) (s2 cons-specializer) generalizer)
   (declare (ignore generalizer))
   (if (eql (%car s1) (%car s2))
