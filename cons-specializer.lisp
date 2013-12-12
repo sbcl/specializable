@@ -67,4 +67,10 @@
      (cadr form))
    (defmethod walk ((form (cons let)))
      (let ((bindings (cadr form)))
-       `(with-bindings ,bindings ,@(cddr form))))))
+       `(with-bindings ,bindings ,@(mapcar #'walk (cddr form)))))
+
+   (assert (equal (walk t) '(lookup t)))
+   (assert (equal (walk nil) '(lookup nil)))
+   (assert (equal (walk '(foo bar)) '(call (flookup foo) (list (lookup bar)))))
+   (assert (equal (walk '(quote bar)) 'bar))
+   (assert (equal (walk '(let foo bar)) '(with-bindings foo (lookup bar))))))
