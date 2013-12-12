@@ -112,7 +112,7 @@
 ;;; FIXME: in some kind of order, the discriminating function needs to handle:
 ;;; - argument count checking;
 ;;; - keyword argument validity;
-;;; - flushing the emf cache on method addition/removal
+;;; - DONE flushing the emf cache on method addition/removal
 ;;; - flushing the cache on class redefinition;
 ;;; - cache thread-safety.
 (defmethod sb-mop:compute-discriminating-function ((gf specializable-generic-function))
@@ -123,6 +123,9 @@
       (if emfun
 	  (sb-pcl::invoke-emf emfun args)
 	  (slow-method-lookup gf args generalizers)))))
+
+(defmethod reinitialize-instance :after ((gf specializable-generic-function) &key)
+  (clrhash (emf-table gf)))
 
 (defun slow-method-lookup (gf args generalizers)
   ;; differs from closette
