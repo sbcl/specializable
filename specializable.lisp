@@ -51,6 +51,12 @@
 ;;; 		 gf
 ;;; 		 args))))
 
+;;; FIXME: this (and add/remove-direct-method) don't actually work
+;;; together, because two distinct calls to make-extended-specializer
+;;; return two distinct specializer objects.  We need either to make
+;;; the extended specializers be interned, or to have them be
+;;; arbitrarily ephemeral but adjust specializer-direct-methods (and
+;;; implement specializer-direct-generic-functions) accordingly.
 (defun make-extended-specializer (sname)
   (destructuring-bind (kind &rest args) sname
     (apply (or (get kind 'extended-specializer-parser)
