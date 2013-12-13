@@ -150,23 +150,16 @@
 (defmethod generalizer-of-using-class ((generic-function specializable-generic-function) object)
   (class-of object))
 
-(defgeneric specializer-accepts-generalizer-p (specializer generalizer))
-(defmethod specializer-accepts-generalizer-p ((specializer class) (generalizer class))
-  ;; does the specializer's object have the -same- class as the the actual
-  ;; argument?
+(defgeneric specializer-accepts-generalizer-p (gf specializer generalizer))
+(defmethod specializer-accepts-generalizer-p
+    ((gf specializable-generic-function) (specializer class) (generalizer class))
   (if (subtypep generalizer specializer)
-      ;; definitive: this method matches all instances of this class
       (values t t)
-      ;; definitive: this method doesn't match instances of this class
       (values nil t)))
 (defmethod specializer-accepts-generalizer-p
-    ((specializer sb-mop:eql-specializer) (generalizer class))
-  ;; does the specializer's object have the -same- class as the actual
-  ;; argument?
+    ((gf specializable-generic-function) (specializer sb-mop:eql-specializer) (generalizer class))
   (if (eq generalizer (class-of (sb-mop:eql-specializer-object specializer)))
-      ;; not definitive, since the actual object might differ
       (values t nil)
-      ;; definitely not the same object
       (values nil t)))
 
 (defgeneric compute-applicable-methods-using-generalizers (gf generalizers))
@@ -177,7 +170,7 @@
     (flet ((filter (method)
              (every (lambda (s g)
                       (multiple-value-bind (acceptsp definitivep)
-                          (specializer-accepts-generalizer-p s g)
+                          (specializer-accepts-generalizer-p gf s g)
                         (unless definitivep
                           (setf result-definitive-p nil))
                         acceptsp))
@@ -213,12 +206,10 @@
        (method-more-specific-p gf m1 m2 generalizers)))))
 
 (defun method-more-specific-p (gf method1 method2 generalizers)
-  ;; differs from closette
-  (declare (ignore gf))
   ;; FIXME: argument precedence order
   (block nil
     (mapc #'(lambda (spec1 spec2 generalizer)
-	      (ecase (specializer< spec1 spec2 generalizer)
+	      (ecase (specializer< gf spec1 spec2 generalizer)
 		(< (return t))
 		(=)
 		((nil > /=) (return nil))))
@@ -228,8 +219,9 @@
     nil))
 
 ;; new, not in closette
-(defgeneric specializer< (s1 s2 generalizer))
-(defmethod specializer< ((s1 class) (s2 class) (generalizer class))
+(defgeneric specializer< (gf s1 s2 generalizer))
+(defmethod specializer<
+    ((gf specializable-generic-function) (s1 class) (s2 class) (generalizer class))
   (if (eq s1 s2)
       '=
       (let ((cpl (sb-mop:class-precedence-list generalizer)))
@@ -237,14 +229,14 @@
 	    '<
 	    nil))))
 (defmethod specializer<
-    ((s1 sb-mop:eql-specializer) (s2 sb-mop:eql-specializer) generalizer)
+    ((gf specializable-generic-function) (s1 sb-mop:eql-specializer) (s2 sb-mop:eql-specializer) generalizer)
   (declare (ignore generalizer))
   (if (eq (sb-mop:eql-specializer-object s1) (sb-mop:eql-specializer-object s2))
       '=
       nil))
-(defmethod specializer< ((s1 sb-mop:eql-specializer) (s2 class) generalizer)
+(defmethod specializer< ((gf specializable-generic-function) (s1 sb-mop:eql-specializer) (s2 class) generalizer)
   (declare (ignore generalizer))
   '<)
-(defmethod specializer< ((c1 class) (c2 sb-mop:eql-specializer) generalizer)
+(defmethod specializer< ((gf specializable-generic-function) (c1 class) (c2 sb-mop:eql-specializer) generalizer)
   (declare (ignore generalizer))
   '>)
