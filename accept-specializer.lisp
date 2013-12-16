@@ -78,6 +78,39 @@
         (and type-node (accept-node-q type-node))
         (accept-node-q accept-tree))))
 
+(defun insert (range q tree)
+  (labels ((ensure-node (range tree)
+             (cond
+               ((null range) tree)
+               (t (ensure-node (cdr range)
+                               (or (find (car range) (accept-node-children tree)
+                                         :key #'accept-node-name :test #'string=)
+                                   (car (push
+                                         (make-accept-node :name (car range))
+                                         (accept-node-children tree)))))))))
+    (let ((node (ensure-node range tree)))
+      ;; we could choose different behaviour here
+      (setf (accept-node-q node) q))
+    tree))
+
+(defun parse-accept-string (string)
+  (flet ((whitespacep (x)
+           (member x '(#\Space #\Tab))))
+    (let ((string (remove-if #'whitespacep string))
+          (result (make-accept-node :name nil)))
+      (cl-ppcre:do-register-groups (type subtype qp q)
+          ;; not desperately error-proof
+          ("([a-z]*|\\*)/([a-z]*|\\*)(;q=([01]\\.[0-9]*))?(,|$)" string result)
+        (if qp
+            (setf q (float (+ (digit-char-p (char q 0))
+                              (/ (parse-integer q :start 2)
+                                 (expt 10 (- (length q) 2))))))
+            (setf q 1.0))
+        (let ((range (and (string/= type "*")
+                          (cons type (and (string/= subtype "*")
+                                          (list subtype))))))
+          (insert range q result))))))
+
 (defclass accept-generic-function (specializable-generic-function)
   ()
   (:metaclass sb-mop:funcallable-standard-class))
