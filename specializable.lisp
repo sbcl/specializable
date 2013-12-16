@@ -13,6 +13,7 @@
 
            "GENERALIZER-OF-USING-CLASS"
            "COMPUTE-APPLICABLE-METHODS-USING-GENERALIZERS"
+           "GENERALIZER-EQUAL-HASH-KEY"
            
            "DEFINE-EXTENDED-SPECIALIZER"))
 
@@ -109,17 +110,23 @@
       (error "Too few arguments to generic function ~S." gf))
     (subseq args 0 number-required)))
 
+(defgeneric generalizer-equal-hash-key (generic-function generalizer))
+(defmethod generalizer-equal-hash-key
+    ((gf specializable-generic-function) (g class))
+  (sb-pcl::class-wrapper g))
+
 ;;; FIXME: in some kind of order, the discriminating function needs to handle:
 ;;; - argument count checking;
 ;;; - keyword argument validity;
 ;;; - DONE flushing the emf cache on method addition/removal
-;;; - flushing the cache on class redefinition;
+;;; - DONE (sort of, using wrappers/g-e-h-k) flushing the cache on class redefinition;
 ;;; - cache thread-safety.
 (defmethod sb-mop:compute-discriminating-function ((gf specializable-generic-function))
   (lambda (&rest args)
     (let* ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
                                  (required-portion gf args)))
-	   (emfun (gethash generalizers (emf-table gf) nil)))
+           (keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers))
+	   (emfun (gethash keys (emf-table gf) nil)))
       (if emfun
 	  (sb-pcl::invoke-emf emfun args)
 	  (slow-method-lookup gf args generalizers)))))
@@ -133,8 +140,9 @@
       (compute-applicable-methods-using-generalizers gf generalizers)
     (if definitivep
 	(let* ((emfun
-		(compute-effective-method-function gf applicable-methods)))
-	  (setf (gethash generalizers (emf-table gf)) emfun)
+		(compute-effective-method-function gf applicable-methods))
+               (keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers)))
+	  (setf (gethash keys (emf-table gf)) emfun)
 	  (sb-pcl::invoke-emf emfun args))
 	(sb-pcl::invoke-emf (compute-effective-method-function
                              gf (sb-mop:compute-applicable-methods gf args))
@@ -227,7 +235,7 @@
       (let ((cpl (sb-mop:class-precedence-list generalizer)))
 	(if (find s2 (cdr (member s1 cpl)))
 	    '<
-	    nil))))
+            '>))))
 (defmethod specializer<
     ((gf specializable-generic-function) (s1 sb-mop:eql-specializer) (s2 sb-mop:eql-specializer) generalizer)
   (declare (ignore generalizer))

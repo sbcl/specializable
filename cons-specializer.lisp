@@ -9,13 +9,15 @@
 
 (define-extended-specializer cons (gf car)
   (make-instance 'cons-specializer :car car))
-
 (defmethod sb-pcl:unparse-specializer-using-class
     ((gf cons-generic-function) (specializer cons-specializer))
   `(cons ,(%car specializer)))
 (defmethod sb-pcl::same-specializer-p
     ((s1 cons-specializer) (s2 cons-specializer))
   (eql (%car s1) (%car s2)))
+
+(defmethod generalizer-equal-hash-key ((gf cons-generic-function) (g symbol))
+  g)
 
 (defmethod generalizer-of-using-class ((gf cons-generic-function) arg)
   (typecase arg
