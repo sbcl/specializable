@@ -65,7 +65,7 @@
           (result (make-accept-node :name nil)))
       (cl-ppcre:do-register-groups (type subtype qp q)
           ;; not desperately error-proof
-          ("([a-z]*|\\*)/([a-z]*|\\*)(;q=([01]\\.[0-9]*))?(,|$)" string result)
+          ("([a-z]*|\\*)/([a-z0-9]*|\\*)(;q=([01]\\.[0-9]*))?(,|$)" string result)
         (if qp
             (setf q (float (+ (digit-char-p (char q 0))
                               (/ (parse-integer q :start 2)
