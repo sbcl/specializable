@@ -168,7 +168,7 @@
                    (let ((request-specializer (car (sb-mop:method-specializers ,method))))
                      (when (typep request-specializer 'accept-specializer)
                        (setf *actual-content-type* (media-type request-specializer))))
-                   (call-method ,method ,@(and nexts `((,(transform nexts)))))))))
+                   (throw 'content-negotiation (call-method ,method ,@(and nexts `((,(transform nexts))))))))))
            (wrap (form)
              `(let ((*actual-content-type*))
                 (multiple-value-prog1
@@ -177,9 +177,9 @@
     (let ((form (if (or before after (rest primary))
                     `(multiple-value-prog1
                          (progn ,@(call-methods before)
-                                (call-method ,(transform primary)))
+                                (catch 'content-negotiation (call-method ,(transform primary))))
                        ,@(call-methods (reverse after)))
-                    `(call-method ,(transform primary)))))
+                    `(catch 'content-negotiation (call-method ,(transform primary))))))
       (if around
           (wrap `(call-method ,(first around)
                               (,@(rest around) (make-method ,form))))
@@ -209,3 +209,17 @@
 (defmethod respond list ((s (accept "audio/mp3")))
   "audio/mp3")
 
+(defgeneric cn-test (request)
+  (:generic-function-class accept-generic-function)
+  (:method-combination content-negotiation))
+(defmethod cn-test ((request (accept "text/html")))
+  'html)
+(defmethod cn-test ((request (accept "text/plain")))
+  'plain)
+(defmethod cn-test ((request (accept "image/webp")))
+  'webp)
+(defmethod cn-test ((request (accept "audio/mp3")))
+  (call-next-method)
+  'mp3)
+(defmethod cn-test :after (request)
+  (print 'after))
