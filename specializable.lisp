@@ -20,9 +20,27 @@
 (in-package "SPECIALIZABLE")
 
 (defclass extended-specializer (sb-mop:specializer)
-  ((direct-methods :initform nil
-                   :accessor %specializer-direct-methods
-                   :reader specializer-direct-methods)))
+  ((direct-methods-table :allocation :class
+                         :initform nil :accessor direct-methods-table)))
+
+(defmethod sb-mop:add-direct-method ((specializer extended-specializer) method)
+  (let* ((table (direct-methods-table specializer))
+         (cell (assoc specializer table :test #'sb-pcl::same-specializer-p)))
+    (unless cell
+      (setf cell (cons specializer nil))
+      (push cell (direct-methods-table specializer)))
+    (push method (cdr cell))))
+
+(defmethod sb-mop:remove-direct-method ((specializer extended-specializer) method)
+  (let* ((table (direct-methods-table specializer))
+         (cell (assoc specializer table :test #'sb-pcl::same-specializer-p)))
+    (setf (cdr cell) (remove method (cdr cell)))))
+
+(defmethod sb-mop:specializer-direct-methods ((specializer extended-specializer))
+  (cdr (assoc specializer (direct-methods-table specializer)
+              :test #'sb-pcl::same-specializer-p)))
+(defmethod sb-mop:specializer-direct-generic-functions ((specializer extended-specializer))
+  (remove-duplicates (mapcar #'sb-mop:method-generic-function (sb-mop:specializer-direct-methods specializer))))
 
 (defclass specializable-generic-function (standard-generic-function)
   ((extended-specializers :initform (make-hash-table :test 'equal)
@@ -65,13 +83,6 @@
 		      kind))
 	   '|This is not a generic function| ;fixme, see comment above
 	   args)))
-
-(defmethod sb-mop:add-direct-method ((specializer extended-specializer) method)
-  (pushnew method (%specializer-direct-methods specializer)))
-
-(defmethod sb-mop:remove-direct-method ((specializer extended-specializer) method)
-  (setf (%specializer-direct-methods specializer)
-        (remove method (specializer-direct-methods specializer))))
 
 ;;; from SBCL:
 
