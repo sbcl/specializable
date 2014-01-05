@@ -122,7 +122,7 @@
 
 ;;; FIXME: in some kind of order, the discriminating function needs to handle:
 ;;; - argument count checking;
-;;; - keyword argument validity;
+;;; - DONE (in effective method) keyword argument validity;
 ;;; - DONE flushing the emf cache on method addition/removal
 ;;; - DONE (sort of, using wrappers/g-e-h-k) flushing the cache on class redefinition;
 ;;; - cache thread-safety.
@@ -145,16 +145,17 @@
       (compute-applicable-methods-using-generalizers gf generalizers)
     (if definitivep
 	(let* ((emfun
-		(compute-effective-method-function gf applicable-methods))
+                (compute-effective-method-function gf applicable-methods))
                (keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers)))
 	  (setf (gethash keys (emf-table gf)) emfun)
 	  (sb-pcl::invoke-emf emfun args))
-	(sb-pcl::invoke-emf (compute-effective-method-function
+        (sb-pcl::invoke-emf (compute-effective-method-function
                              gf (sb-mop:compute-applicable-methods gf args))
                             args))))
 
 (defun compute-effective-method-function (gf methods)
   (let* ((mc (sb-mop:generic-function-method-combination gf))
+         (sb-pcl::*applicable-methods* methods)
          (em (sb-mop:compute-effective-method gf mc methods)))
     (sb-pcl::make-effective-method-function gf em)))
 

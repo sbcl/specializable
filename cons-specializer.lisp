@@ -16,9 +16,9 @@
     ((s1 cons-specializer) (s2 cons-specializer))
   (eql (%car s1) (%car s2)))
 
+;;; FIXME: make a proper generalizer
 (defmethod generalizer-equal-hash-key ((gf cons-generic-function) (g symbol))
   g)
-
 (defmethod generalizer-of-using-class ((gf cons-generic-function) arg)
   (typecase arg
     ((cons symbol) (car arg))
@@ -96,3 +96,35 @@
    (assert (equal (multiple-class-specializers (cons nil nil)) '(cons list t)))
    (assert (equal (multiple-class-specializers (cons 'foo nil)) '((cons foo) cons list t)))
    (assert (equal (multiple-class-specializers (list 'bar nil t 3)) '((cons bar) cons list t)))))
+
+(eval
+ '(progn
+   (defgeneric keyword-args (x &key key1)
+     (:generic-function-class cons-generic-function))
+   (defmethod keyword-args ((x integer) &key key1 key2) (1+ x))
+   (defmethod keyword-args ((x float) &key key1 key3) (+ x 2.0))
+   (defmethod keyword-args :after ((x double-float) &key &allow-other-keys)
+              nil)
+   (assert (= (keyword-args 1) 2))
+   (assert (= (keyword-args 1 :key1 t) 2))
+   (assert (= (keyword-args 1 :key2 t) 2))
+   (assert (= (keyword-args 1 :key1 t :key2 t) 2))
+   (assert (nth-value 1 (ignore-errors (keyword-args 1 :key1 t :key3 t))))
+   (assert (nth-value 1 (ignore-errors (keyword-args 1 :key3 t))))
+   (assert (= (keyword-args 1 :key3 t :allow-other-keys t) 2))
+
+   (assert (= (keyword-args 1.0) 3.0))
+   (assert (= (keyword-args 1.0 :key1 t) 3.0))
+   (assert (= (keyword-args 1.0 :key3 t) 3.0))
+   (assert (= (keyword-args 1.0 :key1 t :key3 t) 3.0))
+   (assert (nth-value 1 (ignore-errors (keyword-args 1.0 :key1 t :key2 t))))
+   (assert (nth-value 1 (ignore-errors (keyword-args 1.0 :key2 t))))
+   (assert (= (keyword-args 1.0 :key2 t :allow-other-keys t) 3.0))
+
+   (assert (= (keyword-args 1.0d0) 3.0d0))
+   (assert (= (keyword-args 1.0d0 :key1 t) 3.0d0))
+   (assert (= (keyword-args 1.0d0 :key3 t) 3.0d0))
+   (assert (= (keyword-args 1.0d0 :key1 t :key3 t) 3.0d0))
+   (assert (= (keyword-args 1.0d0 :key1 t :key2 t) 3.0d0))
+   (assert (= (keyword-args 1.0d0 :key2 t) 3.0d0))
+   (assert (= (keyword-args 1.0d0 :key2 t :allow-other-keys t) 3.0d0))))
