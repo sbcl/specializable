@@ -20,6 +20,7 @@
 (in-package "SPECIALIZABLE")
 
 (defclass extended-specializer (sb-mop:specializer)
+  ;; FIXME: this doesn't actually do quite what I wanted.
   ((direct-methods-table :allocation :class
                          :initform nil :accessor direct-methods-table)))
 
