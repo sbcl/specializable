@@ -155,10 +155,12 @@
                             args))))
 
 (defun compute-effective-method-function (gf methods)
-  (let* ((mc (sb-mop:generic-function-method-combination gf))
-         (sb-pcl::*applicable-methods* methods)
-         (em (sb-mop:compute-effective-method gf mc methods)))
-    (sb-pcl::make-effective-method-function gf em)))
+  (if (null methods)
+      (lambda (&rest args) (apply #'no-applicable-method gf args))
+      (let* ((mc (sb-mop:generic-function-method-combination gf))
+             (sb-pcl::*applicable-methods* methods)
+             (em (sb-mop:compute-effective-method gf mc methods)))
+        (sb-pcl::make-effective-method-function gf em))))
 
 ;; new, not in closette
 (defgeneric generalizer-of-using-class (generic-function object))

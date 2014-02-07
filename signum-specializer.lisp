@@ -63,7 +63,10 @@
    (defmethod fact ((n (signum 0))) 1)
    (defmethod fact ((n (signum 1))) (* n (fact (1- n))))
    (assert (eql (fact 6) 720))
-   (assert (eql (fact 6.0) 720.0))))
+   (assert (eql (fact 6.0) 720.0))
+   (defmethod no-applicable-method ((gf (eql #'fact)) &rest args)
+     'gotcha)
+   (assert (eql (fact -6) 'gotcha))))
 
 (eval
  '(progn
