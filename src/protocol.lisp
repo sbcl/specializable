@@ -12,11 +12,11 @@
 ;;; In order for a generic function to support dispatch with extended
 ;;; specializers, there have to be methods on the generic functions
 ;;;
-;;;   generalizer-of-using-class generic-function object
+;;;   generalizer-of-using-class generic-function object arg-position
 ;;;
-;;;     Return a generalizer object representing OBJECT (an argument
-;;;     with which GENERIC-FUNCTION is being called). This is called
-;;;     done for each required argument.
+;;;     Return a generalizer object representing OBJECT (the
+;;;     ARG-POSITION-th argument with which GENERIC-FUNCTION is being
+;;;     called). This is called once for each required argument.
 ;;;
 ;;;   compute-applicable-methods-using-generalizers generic-function generalizers
 ;;;
@@ -29,13 +29,15 @@
 ;;; for generalizers returned by `generalizers-of-using-class', the
 ;;; generalizer protocol below has to be implemented.
 
-;; new, not in closette
-(defgeneric generalizer-of-using-class (generic-function object)
+(defgeneric generalizer-of-using-class (generic-function object arg-position)
   (:documentation
-   "Return a generalizer object representing OBJECT (an argument with
-    which GENERIC-FUNCTION is being called).
+   "Return a generalizer object representing OBJECT (the
+    ARG-POSITION-th argument with which GENERIC-FUNCTION is being
+    called). ARG-POSITION is the position of object in the (required
+    portion of the) lambda-list of GENERIC-FUNCTION.
 
-    This is called done for each required argument."))
+    This is called once for each pair of required argument OBJECT and
+    its position in the lambda-list ARG-POSITION."))
 
 (defgeneric compute-applicable-methods-using-generalizers (generic-function generalizers)
   (:documentation

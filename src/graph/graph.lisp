@@ -50,7 +50,7 @@
 
 (defun make-specializer-graph (generic-function argument-position argument)
   (let ((generalizer (specializable:generalizer-of-using-class
-                      generic-function argument)))
+                      generic-function argument argument-position)))
     (make-instance 'specializer-graph
                    :generic-function generic-function
                    :argument         argument-position

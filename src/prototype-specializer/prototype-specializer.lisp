@@ -197,7 +197,7 @@
              (remove-role object role)))))
 
 (defmethod generalizer-of-using-class
-    ((gf prototype-generic-function) (object prototype-object))
+    ((gf prototype-generic-function) (object prototype-object) arg-position)
   object)
 
 (defmethod sb-pcl:specializer-type-specifier ((proto-generic-function prototype-generic-function)
