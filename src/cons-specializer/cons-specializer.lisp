@@ -24,7 +24,7 @@
 ;;; FIXME: make a proper generalizer
 (defmethod generalizer-equal-hash-key ((gf cons-generic-function) (g symbol))
   g)
-(defmethod generalizer-of-using-class ((gf cons-generic-function) arg)
+(defmethod generalizer-of-using-class ((gf cons-generic-function) arg arg-position)
   (typecase arg
     ((cons symbol) (car arg))
     (t (call-next-method))))

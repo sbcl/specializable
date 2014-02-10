@@ -108,15 +108,6 @@
 
 ;;; from Closette, changed to use some SBCL functions:
 
-;;; FIXME: this is not actually sufficient argument checking
-(defun required-portion (gf args)
-  (let ((number-required
-         (sb-pcl::arg-info-number-required (sb-pcl::gf-arg-info gf))))
-    (when (< (length args) number-required)
-      (error "Too few arguments to generic function ~S." gf))
-    (subseq args 0 number-required)))
-
-
 (defmethod generalizer-equal-hash-key
     ((gf specializable-generic-function) (g class))
   (sb-pcl::class-wrapper g))
@@ -147,38 +138,64 @@
 ;;; - speed
 ;;; - DONE (in SBCL itself) interaction with TRACE et al.
 (defmethod sb-mop:compute-discriminating-function ((gf specializable-generic-function))
-  (let ((emf-table (emf-table gf)))
-    (declare (type hash-table emf-table))
-    (cond
-      ((and (not (member :standard-discrimination (disabled-optimizations gf)
-                         :test #'eq))
-            (only-has-standard-specializers-p gf))
-       (call-next-method))
-      ((member :cacheing (disabled-optimizations gf)
-               :test #'eq)
-       (lambda (&rest args)
-         (let ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
-                                     args)))
-           (slow-method-lookup-and-call gf args generalizers))))
-      ((first-arg-only-special-case-p gf)
-       (lambda (&rest args)
-         (let* ((g (generalizer-of-using-class gf (car args)))
-                (k (generalizer-equal-hash-key gf g))
-                (emfun (gethash k emf-table nil)))
-           (if emfun
-               (sb-pcl::invoke-emf emfun args)
-               (slow-method-lookup-and-call
-                gf args (cons g (mapcar (lambda (x) (generalizer-of-using-class gf x))
-                                        (cdr (required-portion gf args)))))))))
-      (t
-       (lambda (&rest args)
-         (let* ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
-                                      (required-portion gf args)))
-                (keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers))
-                (emfun (gethash keys emf-table nil)))
-           (if emfun
-               (sb-pcl::invoke-emf emfun args)
-               (slow-method-lookup-and-call gf args generalizers))))))))
+  (when (and (not (member :standard-discrimination (disabled-optimizations gf)
+                          :test #'eq))
+             (only-has-standard-specializers-p gf))
+    (return-from sb-mop:compute-discriminating-function (call-next-method)))
+
+  ;; FIXME: this is not actually sufficient argument checking
+  (let ((num-required
+         (sb-pcl::arg-info-number-required (sb-pcl::gf-arg-info gf)))
+        (emf-table (emf-table gf)))
+    (declare (type fixnum num-required) ; TODO correct?
+             (type hash-table emf-table))
+    (flet ((check-arguments (args)
+             (declare (type list args))
+             (when (< (length args) num-required)
+               (error "Too few arguments to generic function ~S." gf)))
+           (compute-generalizers (into args)
+             (declare (type list into args))
+             (loop
+                :for i :of-type fixnum :from 0 :below num-required
+                :for arg :in args
+                :for cell :of-type cons :on into
+                :do (setf (car cell) (generalizer-of-using-class gf arg i))))
+           (compute-hash-key (generalizer)
+             (generalizer-equal-hash-key gf generalizer)))
+      (cond
+        ((member :cacheing (disabled-optimizations gf)
+                 :test #'eq)
+         (lambda (&rest args)
+           (check-arguments args)
+           (let ((generalizers (make-list num-required)))
+             (declare (dynamic-extent generalizers))
+             (compute-generalizers generalizers args)
+             (slow-method-lookup-and-call gf args generalizers))))
+        ((first-arg-only-special-case-p gf)
+         (lambda (&rest args)
+           (check-arguments args)
+           (let* ((generalizer (generalizer-of-using-class gf (first args) 0))
+                  (key (generalizer-equal-hash-key gf generalizer))
+                  (emfun (gethash key emf-table nil)))
+             (if emfun
+                 (sb-pcl::invoke-emf emfun args)
+                 (let ((rest-generalizers (make-list (1- num-required))))
+                   (when (> 1 num-required)
+                     (compute-generalizers rest-generalizers (rest args)))
+                   (slow-method-lookup-and-call
+                    gf args (list* generalizer rest-generalizers)))))))
+        (t
+         (lambda (&rest args)
+           (check-arguments args)
+           (let ((generalizers (make-list num-required))
+                 (keys (make-list num-required)))
+             (declare (dynamic-extent generalizers keys))
+             (compute-generalizers generalizers args)
+             (map-into keys #'compute-hash-key generalizers)
+             (let* ((emfun (gethash keys emf-table nil)))
+               (if emfun
+                   (sb-pcl::invoke-emf emfun args)
+                   (slow-method-lookup-and-call gf args generalizers))))))))))
 
 (defmethod reinitialize-instance :after ((gf specializable-generic-function) &key)
   (clrhash (emf-table gf)))
@@ -209,9 +226,8 @@
              (em (sb-mop:compute-effective-method gf mc methods)))
         (sb-pcl::make-effective-method-function gf em))))
 
-
-
-(defmethod generalizer-of-using-class ((generic-function specializable-generic-function) object)
+(defmethod generalizer-of-using-class ((generic-function specializable-generic-function)
+                                       object arg-position)
   (class-of object))
 
 (defmethod specializer-accepts-generalizer-p
@@ -255,13 +271,16 @@
   ;; new, not in closette
   (sort
    (copy-list
-    (remove-if-not #'(lambda (method)
-                       (every #'specializer-accepts-p
-                              (sb-mop:method-specializers method)
-                              arguments))
+    (remove-if-not (lambda (method)
+                     (every #'specializer-accepts-p
+                            (sb-mop:method-specializers method)
+                            arguments))
                    (sb-mop:generic-function-methods gf)))
-   (let ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
-                               (required-portion gf arguments))))
+   (let* ((num-required (sb-pcl::arg-info-number-required (sb-pcl::gf-arg-info gf))) ; TODO duplicated above
+          (generalizers (loop
+                           :for i :of-type fixnum :from 0 :below num-required
+                           :for argument :in arguments
+                           :collect (generalizer-of-using-class gf argument i))))
      (lambda (m1 m2)
        (method-more-specific-p gf m1 m2 generalizers)))))
 
