@@ -29,6 +29,12 @@
 ;;; for generalizers returned by `generalizers-of-using-class', the
 ;;; generalizer protocol below has to be implemented.
 
+(defgeneric generalizers-of-using-class (generic-function args)
+  (:documentation
+   "Return a list of generalizer objects for ARGS.
+
+    TODO extend"))
+
 ;; new, not in closette
 (defgeneric generalizer-of-using-class (generic-function object)
   (:documentation

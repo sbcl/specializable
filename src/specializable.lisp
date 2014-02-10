@@ -106,15 +106,6 @@
 
 ;;; from Closette, changed to use some SBCL functions:
 
-;;; FIXME: this is not actually sufficient argument checking
-(defun required-portion (gf args)
-  (let ((number-required
-         (sb-pcl::arg-info-number-required (sb-pcl::gf-arg-info gf))))
-    (when (< (length args) number-required)
-      (error "Too few arguments to generic function ~S." gf))
-    (subseq args 0 number-required)))
-
-
 (defmethod generalizer-equal-hash-key
     ((gf specializable-generic-function) (g class))
   (sb-pcl::class-wrapper g))
@@ -153,23 +144,22 @@
     ((member :cacheing (disabled-optimizations gf)
              :test #'eq)
      (lambda (&rest args)
-       (let ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
-                                   args)))
+       (let ((generalizers (generalizers-of-using-class gf args)))
          (slow-method-lookup-and-call gf args generalizers))))
     ((first-arg-only-special-case-p gf)
      (lambda (&rest args)
-       (let* ((g (generalizer-of-using-class gf (car args)))
-              (k (generalizer-equal-hash-key gf g))
-              (emfun (gethash k (emf-table gf) nil)))
+       (let* ((generalizer (first (generalizers-of-using-class gf args))) ; TODO defeats purpose of special case
+              (key (generalizer-equal-hash-key gf generalizer))
+              (emfun (gethash key (emf-table gf) nil)))
          (if emfun
              (sb-pcl::invoke-emf emfun args)
              (slow-method-lookup-and-call
-              gf args (cons g (mapcar (lambda (x) (generalizer-of-using-class gf x))
-                                      (cdr (required-portion gf args)))))))))
+              gf args (list* generalizer
+                             (mapcar (lambda (x) (generalizer-of-using-class gf x))
+                                     (rest (required-portion gf args)))))))))
     (t
      (lambda (&rest args)
-       (let* ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
-                                    (required-portion gf args)))
+       (let* ((generalizers (generalizers-of-using-class gf args))
               (keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers))
               (emfun (gethash keys (emf-table gf) nil)))
          (if emfun
@@ -205,7 +195,18 @@
              (em (sb-mop:compute-effective-method gf mc methods)))
         (sb-pcl::make-effective-method-function gf em))))
 
+;; new, not in closette
+  ;;; FIXME: this is not actually sufficient argument checking
+(defun required-portion (gf args)
+  (let ((number-required
+          (sb-pcl::arg-info-number-required (sb-pcl::gf-arg-info gf))))
+    (when (< (length args) number-required)
+      (error "Too few arguments to generic function ~S." gf))
+    (subseq args 0 number-required)))
 
+(defmethod generalizers-of-using-class ((generic-function specializable-generic-function) args)
+  (mapcar (lambda (arg) (generalizer-of-using-class generic-function arg))
+          (required-portion generic-function args)))
 
 (defmethod generalizer-of-using-class ((generic-function specializable-generic-function) object)
   (class-of object))
@@ -256,8 +257,7 @@
                               (sb-mop:method-specializers method)
                               arguments))
                    (sb-mop:generic-function-methods gf)))
-   (let ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
-                               (required-portion gf arguments))))
+   (let ((generalizers (generalizers-of-using-class gf arguments)))
      (lambda (m1 m2)
        (method-more-specific-p gf m1 m2 generalizers)))))
 
