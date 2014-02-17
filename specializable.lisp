@@ -121,21 +121,38 @@
     ((gf specializable-generic-function) (g class))
   (sb-pcl::class-wrapper g))
 
+(defun first-arg-only-special-case (gf)
+  (let ((arg-info (sb-pcl::gf-arg-info gf)))
+    (and (>= (sb-pcl::arg-info-number-required arg-info) 1)
+         (every (lambda (x) (eql x t))
+                (cdr (sb-pcl::arg-info-metatypes arg-info))))))
+
 ;;; FIXME: in some kind of order, the discriminating function needs to handle:
 ;;; - argument count checking;
 ;;; - DONE (in effective method) keyword argument validity;
 ;;; - DONE flushing the emf cache on method addition/removal
 ;;; - DONE (sort of, using wrappers/g-e-h-k) flushing the cache on class redefinition;
 ;;; - cache thread-safety.
+;;; - speed
+;;; - interaction with TRACE et al.
 (defmethod sb-mop:compute-discriminating-function ((gf specializable-generic-function))
-  (lambda (&rest args)
-    (let* ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
-                                 (required-portion gf args)))
-           (keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers))
-	   (emfun (gethash keys (emf-table gf) nil)))
-      (if emfun
-	  (sb-pcl::invoke-emf emfun args)
-	  (slow-method-lookup gf args generalizers)))))
+  (if (first-arg-only-special-case gf)
+      (lambda (&rest args)
+        (let* ((g (generalizer-of-using-class gf (car args)))
+               (k (generalizer-equal-hash-key gf g))
+               (emfun (gethash k (emf-table gf) nil)))
+          (if emfun
+              (sb-pcl::invoke-emf emfun args)
+              (slow-method-lookup gf args (cons g (mapcar (lambda (x) (generalizer-of-using-class gf x))
+                                                          (cdr (required-portion gf args))))))))
+      (lambda (&rest args)
+        (let* ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
+                                     (required-portion gf args)))
+               (keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers))
+               (emfun (gethash keys (emf-table gf) nil)))
+          (if emfun
+              (sb-pcl::invoke-emf emfun args)
+              (slow-method-lookup gf args generalizers))))))
 
 (defmethod reinitialize-instance :after ((gf specializable-generic-function) &key)
   (clrhash (emf-table gf)))
@@ -148,7 +165,9 @@
 	(let* ((emfun
                 (compute-effective-method-function gf applicable-methods))
                (keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers)))
-	  (setf (gethash keys (emf-table gf)) emfun)
+          (if (first-arg-only-special-case gf)
+              (setf (gethash (car keys) (emf-table gf)) emfun)
+              (setf (gethash keys (emf-table gf)) emfun))
 	  (sb-pcl::invoke-emf emfun args))
         (sb-pcl::invoke-emf (compute-effective-method-function
                              gf (sb-mop:compute-applicable-methods gf args))
