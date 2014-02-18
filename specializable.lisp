@@ -44,23 +44,20 @@
   (remove-duplicates (mapcar #'sb-mop:method-generic-function (sb-mop:specializer-direct-methods specializer))))
 
 (defclass specializable-generic-function (standard-generic-function)
-  ((extended-specializers :initform (make-hash-table :test 'equal)
-                          :reader generic-function-extended-specializers)
-   (emf-table :initform (make-hash-table :test 'equal) :reader emf-table)
+  ((emf-table :initform (make-hash-table :test 'equal) :reader emf-table)
    (cacheingp :initform t :initarg :cacheingp)
    (single-arg-cacheing-p :initform t :initarg :single-arg-cacheing-p))
   (:metaclass sb-mop:funcallable-standard-class)
   (:default-initargs :method-class (find-class 'specializable-method)))
 
-(defclass specializable-method (standard-method)
-  ((lambda-expression :initarg :lambda-expression
-		      :accessor specializable-method-lambda-expression)))
+;;; TODO: we don't use this class yet, but we might do later
+(defclass specializable-method (standard-method) ())
 
 (defmacro define-extended-specializer (name (gf-var &rest args) &body body)
   ;; FIXME: unparser
   `(setf (get ',name 'extended-specializer-parser)
-	 (lambda (,gf-var ,@args)
-	   ,@body)))
+         (lambda (,gf-var ,@args)
+           ,@body)))
 
 ;; doesn't work, because we'd have to dump GF into the fasl for the macro
 ;; expansion
