@@ -82,7 +82,7 @@
 
 ;;; FIXME: tiebreaker predicate (maybe defaulting to string<)?
 (defclass accept-specializer (extended-specializer)
-  ((media-type :initarg :media-type :reader media-type)))
+  ((media-type :initarg :media-type :type string :reader media-type)))
 (defmethod print-object ((o accept-specializer) s)
   (print-unreadable-object (o s :type t)
     (format s "~S" (media-type o))))
@@ -105,6 +105,7 @@
   (:metaclass sb-mop:funcallable-standard-class))
 
 (define-extended-specializer accept (gf arg)
+  (declare (ignore gf))
   (make-instance 'accept-specializer :media-type arg))
 (defmethod sb-pcl:unparse-specializer-using-class
     ((gf accept-generic-function) (specializer accept-specializer))
