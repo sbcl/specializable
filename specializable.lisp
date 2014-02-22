@@ -46,7 +46,9 @@
 (defclass specializable-generic-function (standard-generic-function)
   ((extended-specializers :initform (make-hash-table :test 'equal)
                           :reader generic-function-extended-specializers)
-   (emf-table :initform (make-hash-table :test 'equal) :reader emf-table))
+   (emf-table :initform (make-hash-table :test 'equal) :reader emf-table)
+   (cacheingp :initform t :initarg :cacheingp)
+   (single-arg-cacheing-p :initform t :initarg :single-arg-cacheing-p))
   (:metaclass sb-mop:funcallable-standard-class)
   (:default-initargs :method-class (find-class 'specializable-method)))
 
@@ -123,7 +125,8 @@
 
 (defun first-arg-only-special-case (gf)
   (let ((arg-info (sb-pcl::gf-arg-info gf)))
-    (and (>= (sb-pcl::arg-info-number-required arg-info) 1)
+    (and (slot-value gf 'single-arg-cacheing-p)
+         (>= (sb-pcl::arg-info-number-required arg-info) 1)
          (every (lambda (x) (eql x t))
                 (cdr (sb-pcl::arg-info-metatypes arg-info))))))
 
@@ -136,42 +139,52 @@
 ;;; - speed
 ;;; - interaction with TRACE et al.
 (defmethod sb-mop:compute-discriminating-function ((gf specializable-generic-function))
-  (if (first-arg-only-special-case gf)
-      (lambda (&rest args)
-        (let* ((g (generalizer-of-using-class gf (car args)))
-               (k (generalizer-equal-hash-key gf g))
-               (emfun (gethash k (emf-table gf) nil)))
-          (if emfun
-              (sb-pcl::invoke-emf emfun args)
-              (slow-method-lookup gf args (cons g (mapcar (lambda (x) (generalizer-of-using-class gf x))
-                                                          (cdr (required-portion gf args))))))))
-      (lambda (&rest args)
-        (let* ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
-                                     (required-portion gf args)))
-               (keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers))
-               (emfun (gethash keys (emf-table gf) nil)))
-          (if emfun
-              (sb-pcl::invoke-emf emfun args)
-              (slow-method-lookup gf args generalizers))))))
+  (cond
+    ((not (slot-value gf 'cacheingp))
+     (lambda (&rest args)
+       (let ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
+                                   args)))
+         (slow-method-lookup-and-call gf args generalizers))))
+    ((first-arg-only-special-case gf)
+     (lambda (&rest args)
+       (let* ((g (generalizer-of-using-class gf (car args)))
+              (k (generalizer-equal-hash-key gf g))
+              (emfun (gethash k (emf-table gf) nil)))
+         (if emfun
+             (sb-pcl::invoke-emf emfun args)
+             (slow-method-lookup-and-call
+              gf args (cons g (mapcar (lambda (x) (generalizer-of-using-class gf x))
+                                      (cdr (required-portion gf args)))))))))
+    (t
+     (lambda (&rest args)
+       (let* ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
+                                    (required-portion gf args)))
+              (keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers))
+              (emfun (gethash keys (emf-table gf) nil)))
+         (if emfun
+             (sb-pcl::invoke-emf emfun args)
+             (slow-method-lookup-and-call gf args generalizers)))))))
 
 (defmethod reinitialize-instance :after ((gf specializable-generic-function) &key)
   (clrhash (emf-table gf)))
 
 (defun slow-method-lookup (gf args generalizers)
-  ;; differs from closette
   (multiple-value-bind (applicable-methods definitivep)
       (compute-applicable-methods-using-generalizers gf generalizers)
-    (if definitivep
-	(let* ((emfun
-                (compute-effective-method-function gf applicable-methods))
-               (keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers)))
-          (if (first-arg-only-special-case gf)
-              (setf (gethash (car keys) (emf-table gf)) emfun)
-              (setf (gethash keys (emf-table gf)) emfun))
-	  (sb-pcl::invoke-emf emfun args))
-        (sb-pcl::invoke-emf (compute-effective-method-function
-                             gf (sb-mop:compute-applicable-methods gf args))
-                            args))))
+    (unless definitivep
+      (setf applicable-methods (compute-applicable-methods gf args)))
+    (values (compute-effective-method-function gf applicable-methods)
+            definitivep)))
+
+(defun slow-method-lookup-and-call (gf args generalizers)
+  (multiple-value-bind (emf cacheablep)
+      (slow-method-lookup gf args generalizers)
+    (when cacheablep
+      (let ((keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers)))
+        (if (first-arg-only-special-case gf)
+            (setf (gethash (car keys) (emf-table gf)) emf)
+            (setf (gethash keys (emf-table gf)) emf))))
+    (sb-pcl::invoke-emf emf args)))
 
 (defun compute-effective-method-function (gf methods)
   (if (null methods)
