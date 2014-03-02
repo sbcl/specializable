@@ -43,6 +43,10 @@
         (and type-node (accept-node-q type-node))
         (accept-node-q accept-tree))))
 
+(defun q-ok (media-type accept-tree)
+  (let ((q (q media-type accept-tree)))
+    (and q (> q 0) q)))
+
 (defun insert (range q tree)
   (labels ((ensure-node (range tree)
              (cond
@@ -117,7 +121,7 @@
     ((gf accept-generic-function) (g accept-generalizer))
   `(accept-generalizer ,(header g)))
 (defmethod specializer-accepts-generalizer-p ((gf accept-generic-function) (s accept-specializer) (generalizer accept-generalizer))
-  (values (q (media-type s) (tree generalizer)) t))
+  (values (q-ok (media-type s) (tree generalizer)) t))
 (defmethod specializer-accepts-generalizer-p ((gf accept-generic-function) (s accept-specializer) generalizer)
   (values nil t))
 (defmethod specializer-accepts-generalizer-p ((gf accept-generic-function) (s sb-mop:specializer) (generalizer accept-generalizer))
@@ -126,7 +130,7 @@
 (defmethod specializer-accepts-p ((specializer accept-specializer) obj)
   nil)
 (defmethod specializer-accepts-p ((specializer accept-specializer) (obj tbnl:request))
-  (q (media-type specializer) (parse-accept-string (tbnl:header-in :accept obj))))
+  (q-ok (media-type specializer) (parse-accept-string (tbnl:header-in :accept obj))))
 
 (defmethod specializer< ((gf accept-generic-function) (s1 accept-specializer) (s2 accept-specializer) generalizer)
   (cond
@@ -190,7 +194,7 @@
                  :header s
                  :next (class-of s)))
 (defmethod specializer-accepts-p ((s accept-specializer) (string string))
-  (q (media-type s) (parse-accept-string string)))
+  (q-ok (media-type s) (parse-accept-string string)))
 
 (defmethod handle-content-type ((x tbnl:request))
   (setf (tbnl:content-type*) *actual-content-type*))
