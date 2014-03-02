@@ -62,9 +62,12 @@
       (dolist (form body)
         (walk form env (cons form call-stack))))))
 (defmethod walk ((expr (cons let)) env call-stack)
-  (with-checked-bindings ((mapcar (lambda (x) (walk (cadr x) env (cons (cadr x) call-stack)) (cons (car  x) (make-instance 'binding))) (cadr expr)) env call-stack)
-    (dolist (form (cddr expr))
-      (walk form env (cons form call-stack)))))
+  (flet ((let-binding (x)
+           (walk (cadr x) env (cons (cadr x) call-stack))
+           (cons (car x) (make-instance 'binding))))
+    (with-checked-bindings ((mapcar #'let-binding (cadr expr)) env call-stack)
+      (dolist (form (cddr expr))
+        (walk form env (cons form call-stack))))))
 
 (defun walk/case (expr env call-stack)
   (typecase expr
