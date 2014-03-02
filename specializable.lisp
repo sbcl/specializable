@@ -134,7 +134,7 @@
 ;;; - DONE (sort of, using wrappers/g-e-h-k) flushing the cache on class redefinition;
 ;;; - cache thread-safety.
 ;;; - speed
-;;; - interaction with TRACE et al.
+;;; - DONE (in SBCL itself) interaction with TRACE et al.
 (defmethod sb-mop:compute-discriminating-function ((gf specializable-generic-function))
   (cond
     ((not (slot-value gf 'cacheingp))
