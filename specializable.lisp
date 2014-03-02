@@ -53,6 +53,14 @@
 ;;; TODO: we don't use this class yet, but we might do later
 (defclass specializable-method (standard-method) ())
 
+;;; TODO use info?
+(defun extended-specializer-name-p (name)
+  (and (symbolp name)
+       (get name 'extended-specializer-parser)))
+
+(deftype extended-specializer-name ()
+  `(satisfies extended-specializer-name-p))
+
 (defmacro define-extended-specializer (name (gf-var &rest args) &body body)
   ;; FIXME: unparser
   `(setf (get ',name 'extended-specializer-parser)
@@ -81,15 +89,10 @@
 ;;; from SBCL:
 
 (defmethod sb-pcl:parse-specializer-using-class
-    ((gf specializable-generic-function) name)
-  (cond
-    ((typep name 'sb-mop:specializer) name)
-    ((symbolp name) (find-class name))
-    ((consp name)
-     (case (car name)
-       (eql (sb-mop:intern-eql-specializer (cadr name)))
-       (t (make-extended-specializer name))))
-    (t (error "unexpected specializer name"))))
+    ((gf specializable-generic-function) (specializer-name t))
+  (if (typep specializer-name '(cons extended-specializer-name))
+      (make-extended-specializer specializer-name)
+      (call-next-method)))
 
 (defmethod sb-pcl:make-method-specializers-form
     ((gf specializable-generic-function) method snames env)
