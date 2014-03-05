@@ -117,7 +117,7 @@
 (defmethod generalizer-of-using-class ((gf accept-generic-function) (arg tbnl:request))
   (make-instance 'accept-generalizer
                  :header (tbnl:header-in :accept arg)
-                 :next (class-of arg)))
+                 :next (call-next-method)))
 (defmethod generalizer-equal-hash-key
     ((gf accept-generic-function) (g accept-generalizer))
   `(accept-generalizer ,(header g)))
@@ -193,7 +193,7 @@
 (defmethod generalizer-of-using-class ((gf accept-generic-function) (s string))
   (make-instance 'accept-generalizer
                  :header s
-                 :next (class-of s)))
+                 :next (call-next-method)))
 (defmethod specializer-accepts-p ((s accept-specializer) (string string))
   (q-ok (media-type s) (parse-accept-string string)))
 
