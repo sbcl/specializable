@@ -10,4 +10,5 @@
   :author      "Jan Moringen <jmoringe@techfak.uni-bielefeld.de>"
   :license     "TODO"
   :description "Generalized specializers - SBCL only"
-  :components  ((:file       "specializable")))
+  :components  ((:module "src"
+                 :components ((:file       "specializable")))))
