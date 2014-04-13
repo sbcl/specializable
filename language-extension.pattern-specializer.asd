@@ -27,4 +27,24 @@
                  :components ((:file       "package")
                               (:file       "protocol")
                               (:file       "optima-extensions")
+                              (:file       "pattern-specializer"))))
+
+  :in-order-to ((test-op (test-op :language-extension.pattern-specializer-test))))
+
+(defsystem :language-extension.pattern-specializer-test
+  :author      "Jan Moringen <jmoringe@techfak.uni-bielefeld.de>"
+  :license     "LLGPLv3; see COPYING file for details."
+  :description "Tests for the language-extension.pattern-specializer system."
+  :depends-on  (:fiveam
+
+                :language-extension.pattern-specializer)
+  :components  ((:module     "test"
+                 :pathname   "test/pattern-specializer"
+                 :serial     t
+                 :components ((:file       "package")
+                              (:file       "optima-extensions")
                               (:file       "pattern-specializer")))))
+
+(defmethod perform ((operation test-op)
+                    (component (eql (find-system :language-extension.pattern-specializer-test))))
+  (funcall (read-from-string "pattern-specializer.test:run-tests")))
