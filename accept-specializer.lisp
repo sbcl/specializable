@@ -189,6 +189,32 @@
           (wrap `(call-method ,(first around)
                               (,@(rest around) (make-method ,form))))
           (wrap form)))))
+(define-method-combination content-negotiation/or ()
+  ((around (:around))
+   (primary () :required t))
+  (:arguments request)
+  (labels ((transform/1 (method)
+             `(make-method
+               (progn
+                 (let ((s (car (sb-mop:method-specializers ,method))))
+                   (when (typep s 'accept-specializer)
+                     (setf *actual-content-type* (media-type s))))
+                 (call-method ,method))))
+           (transform (primaries)
+             (mapcar #'(lambda (x) `(call-method ,(transform/1 x)))
+                     primaries))
+           (wrap (form)
+             `(let ((*actual-content-type*))
+                (multiple-value-prog1
+                    ,form
+                  (handle-content-type ,request)))))
+    (let ((form (if (rest primary)
+                    `(or ,@(transform primary))
+                    `(call-method ,(transform/1 (car primary))))))
+      (if around
+          (wrap `(call-method ,(first around)
+                              (,@(rest around) (make-method ,form))))
+          (wrap form)))))
 
 (defmethod generalizer-of-using-class ((gf accept-generic-function) (s string))
   (make-instance 'accept-generalizer
@@ -228,3 +254,15 @@
   'mp3)
 (defmethod cn-test :after (request)
   (print 'after))
+
+(defgeneric cn/or-test (request)
+  (:generic-function-class accept-generic-function)
+  (:method-combination content-negotiation/or))
+
+(defmethod cn/or-test or ((request (accept "audio/mp3")))
+  'mp3)
+(defmethod cn/or-test or ((request (accept "image/webp")))
+  'webp)
+(defmethod cn/or-test :around ((request t))
+  (print :around)
+  (call-next-method))
