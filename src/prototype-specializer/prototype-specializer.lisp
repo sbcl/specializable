@@ -223,6 +223,15 @@
     ((gf prototype-generic-function) (object prototype-object))
   object)
 
+(defmethod sb-pcl:specializer-type-specifier ((proto-generic-function prototype-generic-function)
+                                              (proto-method standard-method)
+                                              (specializer symbol))
+  'prototype-object)
+(defmethod sb-pcl:specializer-type-specifier ((proto-generic-function prototype-generic-function)
+                                              (proto-method standard-method)
+                                              (specializer prototype-specializer))
+  'prototype-object)
+
 (defmethod specializer-accepts-generalizer-p
     ((gf prototype-generic-function) (specializer late-prototype-specializer) object)
   (values (specializer-accepts-p specializer object) t))

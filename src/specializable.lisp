@@ -85,11 +85,13 @@
 ;;; from SBCL:
 
 (defmethod sb-pcl:parse-specializer-using-class
+    ((gf specializable-generic-function) (specializer-name sb-pcl:specializer))
+  specializer-name)
+(defmethod sb-pcl:parse-specializer-using-class
     ((gf specializable-generic-function) (specializer-name t))
   (if (typep specializer-name '(cons extended-specializer-name))
       (make-extended-specializer specializer-name)
       (call-next-method)))
-
 (defmethod sb-pcl:make-method-specializers-form
     ((gf specializable-generic-function) method snames env)
   (declare (ignore method env))
