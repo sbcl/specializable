@@ -28,6 +28,11 @@
   (typecase arg
     ((cons symbol) (car arg))
     (t (call-next-method))))
+
+(defmethod sb-pcl:specializer-type-specifier ((proto-generic-function cons-generic-function)
+                                              (proto-method standard-method)
+                                              (specializer cons-specializer))
+  `(cons (eql ,(%car specializer))))
 (defmethod specializer-accepts-generalizer-p ((gf cons-generic-function) (specializer cons-specializer) thing)
   (if (eql (%car specializer) thing)
       (values t t)
