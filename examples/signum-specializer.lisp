@@ -22,6 +22,12 @@
   (typecase arg
     (real (make-instance 'signum-specializer :signum (signum arg)))
     (t (call-next-method))))
+
+(defmethod sb-pcl:specializer-type-specifier ((specializer signum-specializer))
+  (case (%signum specializer)
+    (-1 '(real  *  (0)))
+    (0  '(real  0   0))
+    (1  '(real (0)  *))))
 (defmethod specializer-accepts-generalizer-p ((gf signum-generic-function) (specializer signum-specializer) (thing signum-specializer))
   (if (= (%signum specializer) (%signum thing))
       (values t t)

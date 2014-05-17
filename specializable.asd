@@ -14,7 +14,11 @@
   :description "Generalized specializers - SBCL only"
   :components  ((:module "src"
                  :serial t
-                 :components ((:file       "package")
+                 :components ((:module     "pcl-patch"
+                               :components ((:file       "specializer-type-specifier"))
+                               :if-feature :sbcl)
+
+                              (:file       "package")
                               (:file       "protocol")
                               (:file       "specializable"))))
   :in-order-to ((test-op (test-op :specializable-test))))

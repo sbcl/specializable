@@ -141,6 +141,8 @@
 (defmethod generalizer-equal-hash-key
     ((gf accept-generic-function) (g accept-generalizer))
   `(accept-generalizer ,(header g)))
+(defmethod sb-pcl:specializer-type-specifier ((specializer accept-specializer))
+  't)
 (defmethod specializer-accepts-generalizer-p ((gf accept-generic-function) (s accept-specializer) (generalizer accept-generalizer))
   (values (q-ok (media-type s) (tree generalizer)) t))
 (defmethod specializer-accepts-generalizer-p ((gf accept-generic-function) (s accept-specializer) generalizer)
