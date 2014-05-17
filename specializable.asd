@@ -16,7 +16,8 @@
                  :serial t
                  :components ((:module     "pcl-patch"
                                :components ((:file       "specializer-type-specifier")
-                                            (:file       "make-method-lambda-using-specializers"))
+                                            (:file       "make-method-lambda-using-specializers")
+                                            (:file       "make-specializer-form-using-class"))
                                :if-feature :sbcl)
 
                               (:file       "package")
