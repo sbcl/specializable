@@ -15,7 +15,8 @@
   :components  ((:module "src"
                  :serial t
                  :components ((:module     "pcl-patch"
-                               :components ((:file       "specializer-type-specifier"))
+                               :components ((:file       "specializer-type-specifier")
+                                            (:file       "make-method-lambda-using-specializers"))
                                :if-feature :sbcl)
 
                               (:file       "package")
