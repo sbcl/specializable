@@ -166,17 +166,19 @@
 (defclass prototype-generic-function (specializable-generic-function)
   ()
   (:metaclass sb-mop:funcallable-standard-class))
-(defmethod sb-pcl:make-method-specializers-form
-    ((gf prototype-generic-function) method snames env)
-  (flet ((frob (x)
-           (typecase x
-             (sb-mop:specializer x)
-             ((or symbol prototype-object)
-              `(make-instance 'late-prototype-specializer :object ,x))
-             ((cons (eql 'class)) `(find-class ',(cadr x)))
-             ((cons (eql 'eql)) `(sb-mop:intern-eql-specializer ,(cadr x)))
-             (t (error "unexpected specializer name: ~S" x)))))
-    `(list ,@(mapcar #'frob snames))))
+
+(defmethod sb-pcl:make-specializer-form-using-class or
+    ((proto-generic-function prototype-generic-function)
+     (proto-method standard-method)
+     (specializer-name prototype-object)
+     environment)
+  `(make-instance 'late-prototype-specializer :object ,specializer-name))
+(defmethod sb-pcl:make-specializer-form-using-class or
+    ((proto-generic-function prototype-generic-function)
+     (proto-method standard-method)
+     (specializer-name symbol)
+     environment)
+  `(make-instance 'late-prototype-specializer :object ,specializer-name))
 
 (defmethod sb-pcl:parse-specializer-using-class
     ((gf prototype-generic-function) (name symbol))

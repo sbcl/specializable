@@ -89,7 +89,7 @@
          (:method ((bar /root/)))
          (:method ((bar object)))
          #+TODO-not-possible (:method ((bar integer)))
-         #+TODO-broken (:method ((bar (eql 5)))))
+         (:method ((bar (eql 5)))))
 
       (dolist (method (sb-mop:generic-function-methods #'foo))
         (finishes (remove-method #'foo method)))
@@ -105,13 +105,13 @@
            :root)
          (:method ((bar object))
            :object)
-         #+TODO-broken (:method ((bar (eql 5)))
+         (:method ((bar (eql 5)))
            5))
 
       (signals error (foo :no-such-method))
       (is (eq :root (foo /root/)))
       (is (eq :object (foo object)))
-      #+TODO-broken (is (eq 5 (foo 5)))
+      (is (eq 5 (foo 5)))
 
       ;; Cloning should inherit roles.
       (let ((object2 (clone object)))

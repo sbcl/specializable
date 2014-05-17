@@ -92,19 +92,14 @@
   (if (typep specializer-name '(cons extended-specializer-name))
       (make-extended-specializer specializer-name)
       (call-next-method)))
-(defmethod sb-pcl:make-method-specializers-form
-    ((gf specializable-generic-function) method snames env)
-  (declare (ignore method env))
-  (flet ((parse (name)
-           (cond
-             ((typep name 'sb-mop:specializer) name)
-             ((symbolp name) `(find-class ',name))
-             ((consp name)
-              (case (car name)
-                (eql `(sb-mop:intern-eql-specializer ,(cadr name)))
-                (t `(make-extended-specializer ',name))))
-             (t (error "unexpected specializer name")))))
-    `(list ,@(mapcar #'parse snames))))
+
+(defmethod sb-pcl:make-specializer-form-using-class or
+    ((proto-generic-function specializable-generic-function)
+     (proto-method standard-method)
+     (specializer-name cons)
+     environment)
+  (when (extended-specializer-name-p (car specializer-name))
+    `(make-extended-specializer ',specializer-name)))
 
 ;;; from Closette, changed to use some SBCL functions:
 
