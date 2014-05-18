@@ -117,8 +117,8 @@
    (assert (= (keyword-args 1.0 :key1 t) 3.0))
    (assert (= (keyword-args 1.0 :key3 t) 3.0))
    (assert (= (keyword-args 1.0 :key1 t :key3 t) 3.0))
-   (assert (nth-value 1 (ignore-errors (keyword-args 1.0 :key1 t :key2 t))))
-   (assert (nth-value 1 (ignore-errors (keyword-args 1.0 :key2 t))))
+   (assert (nth-value 1 (ignore-errors (keyword-args 1.0f0 :key1 t :key2 t))))
+   (assert (nth-value 1 (ignore-errors (keyword-args 1.0f0 :key2 t))))
    (assert (= (keyword-args 1.0 :key2 t :allow-other-keys t) 3.0))
 
    (assert (= (keyword-args 1.0d0) 3.0d0))
