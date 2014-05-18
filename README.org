@@ -14,9 +14,11 @@
   Based on the above extension, the following extended =specializer= s
   are also provided:
   + =cons-specializer= for dispatch based on the contents of the =car=
-    slot of =cons= objects
+    slot of =cons= objects. See [[file:examples/cons-specializer.lisp]]
   + =accept-specializer= for dispatch based on HTTP content
-    negotiation
+    negotiation. See [[file:examples/accept-specializer.lisp]].
+  + =pattern-specializer= for dispatch based on [[https://github.com/m2ym/optima][Optima]] patterns. See
+    [[file:src/pattern-specializer]]
 
   A detailed description can be found in the associated
   publications [fn:1][fn:2].
