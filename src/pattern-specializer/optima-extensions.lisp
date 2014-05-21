@@ -37,7 +37,7 @@
   (every (of-type 'optima.core:variable-pattern)
          (optima.core:complex-pattern-subpatterns pattern)))
 
-;;; Implementation
+;; Implementation
 
 (defmethod pattern-more-specific-p :around ((pattern1 optima::pattern)
                                             (pattern2 optima::pattern))
@@ -382,3 +382,101 @@
   (with-unique-names (object-var)
     (compile nil `(lambda (,object-var)
                     ,(make-checking-form pattern object-var)))))
+;;; Variable aliasing protocol
+
+(defgeneric pattern-variables-and-paths (pattern)
+  (:documentation
+   "Return a list of variables and their respective structural
+    position in PATTERN with elements of the form
+
+      (NAME . PATH)
+
+    where PATH is a list of the format
+
+      PATTERN-KIND1 PATTERN-KEY1 ...
+
+    For example, the return value for a `cons-pattern' of the
+    form (cons a b) would be
+
+      ((A . (cons-pattern 0)) (b . (cons-pattern 1)))
+
+    ."))
+
+(defgeneric pattern-keys (pattern)
+  (:documentation
+   "Return a list of objects uniquely encoding the structural
+    positions of variables in PATTERN.
+
+    For example, the keys of a `cons-pattern' are '(0 1), the keys of
+    a `class-pattern' are the (ordered) slot names."))
+
+;; Implementation
+
+;; TODO or-pattern can have duplicates?
+
+(defmethod pattern-variables-and-paths ((pattern optima.core:constant-pattern))
+  '())
+
+(defmethod pattern-variables-and-paths ((pattern optima.core:variable-pattern))
+  (with-accessors ((name optima.core:variable-pattern-name)) pattern
+    (when (symbol-package name)
+      (list (cons name '())))))
+
+(defmethod pattern-keys ((pattern optima.core:complex-pattern))
+  (iota (length (optima.core:complex-pattern-subpatterns pattern))))
+
+(defmethod pattern-variables-and-paths ((pattern optima.core:complex-pattern))
+  (let ((kind (class-name (class-of pattern))))
+    (loop :for key :in (pattern-keys pattern)
+       :for subpattern :in (optima.core:complex-pattern-subpatterns pattern)
+       :appending (loop :for (name . path) :in (pattern-variables-and-paths
+                                                subpattern)
+                     :collect (cons name (list* kind key path))))))
+
+(defmethod pattern-keys ((pattern optima.core:class-pattern))
+  (optima.core:class-pattern-slot-names pattern))
+
+;;; TODO section title
+
+(defstruct (variable-info (:constructor make-variable-info
+                                        (name &optional paths)))
+  (name  (required-argument :name) :type symbol :read-only t)
+  (paths '()                       :type list))
+
+(defun variables-and-paths->variable-infos (variables-and-paths)
+  (let ((table (make-hash-table :test #'eq)))
+    (loop :for (name . path) :in variables-and-paths
+       :do (push path (variable-info-paths
+                       (ensure-gethash
+                        name table (make-variable-info name)))))
+    (hash-table-values table)))
+
+(defstruct (variable-cluster (:constructor make-variable-cluster
+                                           (index &optional variables)))
+  (index      (required-argument :index) :type non-negative-integer :read-only t)
+  (variables '()                         :type list))
+
+(defun add-variables-to-clusters (clusters new-variables &optional (start-index 0))
+  (flet ((belongs-into-cluster? (variable cluster)
+           (some (lambda (element)
+                   (intersection (variable-info-paths element)
+                                 (variable-info-paths variable)
+                                 :test #'equal))
+                 (variable-cluster-variables cluster))))
+    (let ((index    start-index)
+          (clusters clusters))
+      (dolist (variable new-variables clusters)
+        (let ((cluster (or (find-if (curry #'belongs-into-cluster? variable)
+                                    clusters)
+                           (let ((c (make-variable-cluster index)))
+                             (incf index)
+                             (push c clusters)
+                             c))))
+          (push variable (variable-cluster-variables cluster)))))))
+
+(defun patterns->variable-clusters (patterns)
+  (reduce #'add-variables-to-clusters patterns
+          :key           (compose #'variables-and-paths->variable-infos
+                                  #'pattern-variables-and-paths
+                                  #'optima.core:parse-pattern)
+          :initial-value '()))

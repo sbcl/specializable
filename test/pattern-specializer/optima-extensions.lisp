@@ -246,3 +246,32 @@
 ;; follows from previous case:
 (pattern-more-specific-p (optima.core:parse-pattern '(list* (and op (type symbol)) args))
                          (optima.core:parse-pattern '(list* (and op (type (member + *))) (guard args (notany #'consp args)))))
+
+
+;;; Test
+
+(test pattern-variables-and-paths.smoke
+
+  (mapc
+   (lambda (spec)
+     (destructuring-bind (pattern expected) spec
+       (is (equal expected (pattern-variables-and-paths
+                            (optima.core:parse-pattern input))))))
+
+   '(((or a b 1 (not c))
+      ((a optima.core:or-pattern 0) (b optima.core:or-pattern 1)))
+
+     ((list* c (cons a b))
+      ((c optima.core:cons-pattern 0)
+       (a optima.core:cons-pattern 1 optima.core:cons-pattern 0)
+       (b optima.core:cons-pattern 1 optima.core:cons-pattern 1)))
+
+     ((pathname name type)
+      ((name optima.core:class-pattern name)
+       (type optima.core:class-pattern type)))
+
+     ((pathname (optima:guard name (stringp name)) type)
+      ((name optima.core:class-pattern optima:guard optima.core:and-pattern 0)
+       (name optima.core:class-pattern optima:guard optima.core:and-pattern 1
+             optima.core:structure-pattern 0)
+       (type optima.core:class-pattern type))))))
