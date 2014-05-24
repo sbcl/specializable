@@ -436,19 +436,30 @@
 (defmethod pattern-keys ((pattern optima.core:class-pattern))
   (optima.core:class-pattern-slot-names pattern))
 
+;;; TODO move to different file?
 ;;; TODO section title
 
 (defstruct (variable-info (:constructor make-variable-info
-                                        (name &optional paths)))
-  (name  (required-argument :name) :type symbol :read-only t)
-  (paths '()                       :type list))
+                                        (name &optional paths specializers)))
+  (name         (required-argument :name) :type symbol :read-only t)
+  (paths        '()                       :type list)
+  (specializers '()                       :type list))
 
-(defun variables-and-paths->variable-infos (variables-and-paths)
+(defmethod print-object ((object variable-info) stream)
+  (print-unreadable-object (object stream :type t :identity t)
+    (with-accessors ((name  variable-info-name)
+                     (paths variable-info-paths)) object
+      (let ((singletonp (length= 1 paths)))
+       (format stream "~A ~:[(~D)~;@~A~]"
+               name singletonp (if singletonp (first paths) (length paths)))))))
+
+(defun variables-and-paths->variable-infos (variables-and-paths
+                                            &optional specializer)
   (let ((table (make-hash-table :test #'eq)))
-    (loop :for (name . path) :in variables-and-paths
-       :do (push path (variable-info-paths
-                       (ensure-gethash
-                        name table (make-variable-info name)))))
+    (loop :for (name . path) :in variables-and-paths :do
+       (let ((info (ensure-gethash name table (make-variable-info name))))
+        (push path (variable-info-paths info))
+        (push specializer (variable-info-specializers info))))
     (hash-table-values table)))
 
 (defstruct (variable-cluster (:constructor make-variable-cluster
@@ -456,8 +467,17 @@
   (index      (required-argument :index) :type non-negative-integer :read-only t)
   (variables '()                         :type list))
 
-(defun add-variables-to-clusters (clusters new-variables &optional (start-index 0))
-  (flet ((belongs-into-cluster? (variable cluster)
+(defmethod print-object ((object variable-cluster) stream)
+  (print-unreadable-object (object stream :type t :identity t)
+    (with-accessors ((index     variable-cluster-index)
+                     (variables variable-cluster-variables)) object
+      (format stream "~D: ~A"
+              index (mapcar #'variable-info-name variables)))))
+
+(defun add-variables-to-clusters (clusters new-variables
+                                  &optional
+                                  (start-index (length clusters)))
+  (flet ((belongs-into-cluster-p (variable cluster)
            (some (lambda (element)
                    (intersection (variable-info-paths element)
                                  (variable-info-paths variable)
@@ -466,7 +486,7 @@
     (let ((index    start-index)
           (clusters clusters))
       (dolist (variable new-variables clusters)
-        (let ((cluster (or (find-if (curry #'belongs-into-cluster? variable)
+        (let ((cluster (or (find-if (curry #'belongs-into-cluster-p variable)
                                     clusters)
                            (let ((c (make-variable-cluster index)))
                              (incf index)
@@ -474,9 +494,31 @@
                              c))))
           (push variable (variable-cluster-variables cluster)))))))
 
-(defun patterns->variable-clusters (patterns)
+(defun patterns->variable-clusters (patterns &optional specializers)
   (reduce #'add-variables-to-clusters patterns
           :key           (compose #'variables-and-paths->variable-infos
-                                  #'pattern-variables-and-paths
-                                  #'optima.core:parse-pattern)
+                                  #'pattern-variables-and-paths)
           :initial-value '()))
+
+(defun specializers->variable-clusters (specializers)
+  (reduce (lambda (clusters specializer)
+            (let ((variables (variables-and-paths->variable-infos
+                              (pattern-variables-and-paths
+                               (specializer-parsed-pattern specializer))
+                              specializer)))
+              (add-variables-to-clusters clusters variables)))
+          specializers
+          :initial-value '()))
+
+;;; Prototyping
+
+(defun duplicate-variables (variable-lists)
+  ;; VARIABLES is a list of lists of `variable-info'.
+  (let ((seen (make-hash-table :test #'eq)))
+    (flet ((check-list (variables)
+             (dolist (variable variables)
+               (with-accessors ((name variable-info-name)) variable
+                 (push variable (gethash name seen '()))))))
+      (mapc #'check-list variable-lists))
+    (remove-if (lambda (entry) (length= 1 (cdr entry)))
+               (hash-table-alist seen))))
