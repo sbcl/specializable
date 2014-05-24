@@ -255,17 +255,19 @@
        (method-more-specific-p gf m1 m2 generalizers)))))
 
 (defun method-more-specific-p (gf method1 method2 generalizers)
-  ;; FIXME: argument precedence order
-  (block nil
-    (mapc #'(lambda (spec1 spec2 generalizer)
-	      (ecase (specializer< gf spec1 spec2 generalizer)
-		(< (return t))
-		(=)
-		((nil > /=) (return nil))))
-	  (sb-mop:method-specializers method1)
-	  (sb-mop:method-specializers method2)
-	  generalizers)
-    nil))
+  (let ((lambda-list   (sb-mop:generic-function-lambda-list gf))
+        (specializers1 (sb-mop:method-specializers method1))
+        (specializers2 (sb-mop:method-specializers method2)))
+    (loop
+       :for arg :in (sb-mop:generic-function-argument-precedence-order gf)
+       :for index = (position arg lambda-list)
+       :for generalizer :in generalizers
+       :do (let ((specializer1 (nth index specializers1))
+                 (specializer2 (nth index specializers2)))
+             (ecase (specializer< gf specializer1 specializer2 generalizer)
+               (<          (return t))
+               (=)
+               ((nil > /=) (return nil)))))))
 
 ;; new, not in closette
 (defgeneric specializer< (gf s1 s2 generalizer))
