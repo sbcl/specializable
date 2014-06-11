@@ -40,7 +40,7 @@
   (declare (ignore generalizer))
   (if (eql (%car s1) (%car s2))
       '=
-      nil))
+      '/=))
 (defmethod specializer< ((gf cons-generic-function) (s1 cons-specializer) (s2 class) generalizer)
   (declare (ignore generalizer))
   '<)

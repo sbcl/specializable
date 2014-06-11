@@ -39,7 +39,7 @@
   (declare (ignore generalizer))
   (if (= (%signum s1) (%signum s2))
       '=
-      nil))
+      '/=))
 (defmethod specializer< ((gf signum-generic-function) (s1 signum-specializer) (s2 class) generalizer)
   (declare (ignore generalizer))
   '<)

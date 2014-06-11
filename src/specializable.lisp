@@ -265,26 +265,54 @@
        :do (let ((specializer1 (nth index specializers1))
                  (specializer2 (nth index specializers2)))
              (ecase (specializer< gf specializer1 specializer2 generalizer)
-               (<          (return t))
+               (<      (return t))
                (=)
-               ((nil > /=) (return nil)))))))
+               ((> /=) (return nil)))))))
 
 ;; new, not in closette
-(defgeneric specializer< (gf s1 s2 generalizer))
+(defgeneric specializer< (generic-function specializer1 specializer2 generalizer)
+  (:documentation
+   "Compare the specificity of SPECIALIZER1 and SPECIALIZER2
+    w.r.t. GENERALIZER and return
+
+    =  if SPECIALIZER1 and SPECIALIZER2 are equally specific
+       w.r.t. GENERALIZER (TODO does that imply SAME-SPECIALIZER-P)?
+
+    <  if SPECIALIZER1 is more specific than SPECIALIZER2
+       w.r.t. GENERALIZER
+
+    >  if SPECIALIZER1 is less specific than SPECIALIZER2
+       w.r.t. GENERALIZER
+
+    /= if there is no relation between the respective specificity of
+       SPECIALIZER1 and SPECIALIZER2 w.r.t. GENERALIZER
+
+    For example, when SPECIALIZER1, SPECIALIZER2 and GENERALIZER are
+    of type CLASS, SPECIALIZER1 is more specific than SPECIALIZER2
+    w.r.t. GENERALIZER if GENERALIZER occurs in the CPLs of both
+    SPECIALIZER1 and SPECIALIZER2 and the position in the CPL of
+    SPECIALIZER1 is smaller."))
+
 (defmethod specializer<
     ((gf specializable-generic-function) (s1 class) (s2 class) (generalizer class))
-  (if (eq s1 s2)
-      '=
-      (let ((cpl (sb-mop:class-precedence-list generalizer)))
-	(if (find s2 (cdr (member s1 cpl)))
-	    '<
-            '>))))
+  (let ((cpl))
+    (flet ((cpl ()
+             (or cpl (setf cpl (sb-mop:class-precedence-list generalizer)))))
+      (cond
+        ((eq s1 s2)
+         '=)
+        ((find s2 (cdr (member s1 (cpl))))
+         '<)
+        ((find s1 (cdr (member s2 (cpl))))
+         '>)
+        (t
+         '/=)))))
 (defmethod specializer<
     ((gf specializable-generic-function) (s1 sb-mop:eql-specializer) (s2 sb-mop:eql-specializer) generalizer)
   (declare (ignore generalizer))
   (if (eq (sb-mop:eql-specializer-object s1) (sb-mop:eql-specializer-object s2))
       '=
-      nil))
+      '/=))
 (defmethod specializer< ((gf specializable-generic-function) (s1 sb-mop:eql-specializer) (s2 class) generalizer)
   (declare (ignore generalizer))
   '<)
