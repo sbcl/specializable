@@ -130,6 +130,15 @@
          (every (lambda (x) (eql x t))
                 (cdr (sb-pcl::arg-info-metatypes arg-info))))))
 
+(defun method-specializers-standard-p (method)
+  (flet ((standard-specializer-p (s)
+           (typep s '(or class sb-mop:eql-specializer sb-pcl::class-eq-specializer))))
+    (let ((specializers (sb-mop:method-specializers method)))
+      (every #'standard-specializer-p specializers))))
+
+(defun only-has-standard-specializers-p (gf)
+  (every #'method-specializers-standard-p (sb-mop:generic-function-methods gf)))
+
 ;;; FIXME: in some kind of order, the discriminating function needs to handle:
 ;;; - argument count checking;
 ;;; - DONE (in effective method) keyword argument validity;
@@ -140,6 +149,7 @@
 ;;; - DONE (in SBCL itself) interaction with TRACE et al.
 (defmethod sb-mop:compute-discriminating-function ((gf specializable-generic-function))
   (cond
+    ((only-has-standard-specializers-p gf) (call-next-method))
     ((not (slot-value gf 'cacheingp))
      (lambda (&rest args)
        (let ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
