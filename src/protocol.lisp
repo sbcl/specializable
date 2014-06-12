@@ -170,14 +170,12 @@
        b) computations based on the first value can be cached for
           future calls with an equivalent GENERALIZER."))
 
-;; new, not in closette
 (defgeneric specializer-accepts-p (specializer object)
   (:documentation
    "Return true if SPECIALIZER accepts OBJECT in the sense that if all
     specializers of a given method accept their respective arguments,
     the method is applicable."))
 
-;; new, not in closette
 (defgeneric specializer< (generic-function specializer1 specializer2 generalizer)
   (:documentation
    "Compare the specificity of SPECIALIZER1 and SPECIALIZER2

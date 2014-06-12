@@ -5,6 +5,43 @@
 
 (cl:in-package "SPECIALIZABLE")
 
+;;; Extended specializer syntax
+
+(defun extended-specializer-name-p (name)
+  (and (symbolp name) (get name 'extended-specializer-parser)))
+
+(deftype extended-specializer-name ()
+  `(satisfies extended-specializer-name-p))
+
+(defmacro define-extended-specializer (name (generic-function-var &rest args)
+                                       &body body)
+  ;; FIXME: unparser
+  `(setf (get ',name 'extended-specializer-parser)
+         (lambda (,generic-function-var ,@args)
+           ,@body)))
+
+;; doesn't work, because we'd have to dump GF into the fasl for the macro
+;; expansion
+;;; (defun intern-extended-specializer (gf sname)
+;;;   (destructuring-bind (kind &rest args) sname
+;;;     (setf (gethash sname (generic-function-extended-specializers gf))
+;;;       (apply (or (get kind 'extended-specializer-parser)
+;;;                  (error "not declared as an extended specializer name: ~A"
+;;;                         kind))
+;;;              gf
+;;;              args))))
+
+(defun make-extended-specializer (specializer-specifier)
+  (declare (type (cons symbol) specializer-specifier))
+  (destructuring-bind (name &rest args) specializer-specifier
+    (apply (or (get name 'extended-specializer-parser)
+               (error "not declared as an extended specializer name: ~A"
+                      name))
+           '|This is not a generic function| ; FIXME, see comment above
+           args)))
+
+;;; EXTENDED-SPECIALIZER protocol class
+
 (defclass extended-specializer (sb-mop:specializer)
   ;; FIXME: this doesn't actually do quite what I wanted.
   ((direct-methods-table :allocation :class
@@ -30,7 +67,8 @@
   (remove-duplicates (mapcar #'sb-mop:method-generic-function (sb-mop:specializer-direct-methods specializer))))
 
 (defclass specializable-generic-function (standard-generic-function)
-  ((emf-table :initform (make-hash-table :test 'equal) :reader emf-table)
+  ((emf-table              :initform (make-hash-table :test 'equal)
+                           :reader   emf-table)
    (disabled-optimizations :initarg  :disabled-optimizations
                            :initform ()
                            :reader   disabled-optimizations
@@ -49,46 +87,13 @@
 ;;; TODO: we don't use this class yet, but we might do later
 (defclass specializable-method (standard-method) ())
 
-;;; TODO use info?
-(defun extended-specializer-name-p (name)
-  (and (symbolp name)
-       (get name 'extended-specializer-parser)))
-
-(deftype extended-specializer-name ()
-  `(satisfies extended-specializer-name-p))
-
-(defmacro define-extended-specializer (name (gf-var &rest args) &body body)
-  ;; FIXME: unparser
-  `(setf (get ',name 'extended-specializer-parser)
-         (lambda (,gf-var ,@args)
-           ,@body)))
-
-;; doesn't work, because we'd have to dump GF into the fasl for the macro
-;; expansion
-;;; (defun intern-extended-specializer (gf sname)
-;;;   (destructuring-bind (kind &rest args) sname
-;;;     (setf (gethash sname (generic-function-extended-specializers gf))
-;;;       (apply (or (get kind 'extended-specializer-parser)
-;;;                  (error "not declared as an extended specializer name: ~A"
-;;;                         kind))
-;;;              gf
-;;;              args))))
-
-(defun make-extended-specializer (sname)
-  (destructuring-bind (kind &rest args) sname
-    (apply (or (get kind 'extended-specializer-parser)
-               (error "not declared as an extended specializer name: ~A"
-                      kind))
-           '|This is not a generic function| ;fixme, see comment above
-           args)))
-
 ;;; from SBCL:
 
 (defmethod sb-pcl:parse-specializer-using-class
     ((gf specializable-generic-function) (specializer-name sb-pcl:specializer))
   specializer-name)
 (defmethod sb-pcl:parse-specializer-using-class
-    ((gf specializable-generic-function) (specializer-name t))
+    ((gf specializable-generic-function) (specializer-name cons))
   (if (typep specializer-name '(cons extended-specializer-name))
       (make-extended-specializer specializer-name)
       (call-next-method)))
@@ -129,12 +134,13 @@
 
 (defun method-specializers-standard-p (method)
   (flet ((standard-specializer-p (s)
-           (typep s '(or class sb-mop:eql-specializer sb-pcl::class-eq-specializer))))
-    (let ((specializers (sb-mop:method-specializers method)))
-      (every #'standard-specializer-p specializers))))
+           (typep s '(or class sb-mop:eql-specializer
+                         sb-pcl::class-eq-specializer))))
+    (every #'standard-specializer-p (sb-mop:method-specializers method))))
 
 (defun only-has-standard-specializers-p (gf)
-  (every #'method-specializers-standard-p (sb-mop:generic-function-methods gf)))
+  (every #'method-specializers-standard-p
+         (sb-mop:generic-function-methods gf)))
 
 ;;; FIXME: in some kind of order, the discriminating function needs to handle:
 ;;; - argument count checking;
@@ -285,48 +291,47 @@
       (values t nil)
       (values nil t)))
 
-(defmethod compute-applicable-methods-using-generalizers
-    ((gf specializable-generic-function) generalizers)
-  ;; differs from closette
-  (let ((result-definitive-p t))
-    (flet ((filter (method)
-             (every (lambda (s g)
-                      (multiple-value-bind (acceptsp definitivep)
-                          (specializer-accepts-generalizer-p gf s g)
-                        (unless definitivep
-                          (setf result-definitive-p nil))
-                        acceptsp))
-                    (sb-mop:method-specializers method) generalizers))
-           (sorter (m1 m2)
-             (method-more-specific-p gf m1 m2 generalizers)))
-      (values
-       (sort
-        (copy-list (remove-if-not #'filter (sb-mop:generic-function-methods gf)))
-        #'sorter)
-       result-definitive-p))))
-
 (defmethod specializer-accepts-p ((specializer class) object)
   (typep object specializer))
 (defmethod specializer-accepts-p ((specializer sb-mop:eql-specializer) object)
   (eq object (sb-mop:eql-specializer-object specializer)))
 
+(defmethod compute-applicable-methods-using-generalizers
+    ((gf specializable-generic-function) generalizers)
+  (let ((methods (sb-mop:generic-function-methods gf))
+        (result-definitive-p t))
+    (labels ((accepts-p (specializer generalizer)
+               (multiple-value-bind (acceptsp definitivep)
+                   (specializer-accepts-generalizer-p
+                    gf specializer generalizer)
+                 (unless definitivep
+                   (setf result-definitive-p nil))
+                 acceptsp))
+             (applicable-p (method)
+               (every #'accepts-p
+                      (sb-mop:method-specializers method) generalizers))
+             (method< (method1 method2)
+               (method-more-specific-p gf method1 method2 generalizers)))
+      (declare (dynamic-extent #'accepts-p #'applicable-p #'method<))
+      (values (sort (copy-list (remove-if-not #'applicable-p methods)) #'method<)
+              result-definitive-p))))
+
 (defmethod compute-applicable-methods
     ((gf specializable-generic-function) arguments)
-  ;; new, not in closette
-  (sort
-   (copy-list
-    (remove-if-not (lambda (method)
-                     (every #'specializer-accepts-p
-                            (sb-mop:method-specializers method)
-                            arguments))
-                   (sb-mop:generic-function-methods gf)))
-   (let* ((num-required (sb-pcl::arg-info-number-required (sb-pcl::gf-arg-info gf))) ; TODO duplicated above
-          (generalizers (loop
-                           :for i :of-type fixnum :from 0 :below num-required
-                           :for argument :in arguments
-                           :collect (generalizer-of-using-class gf argument i))))
-     (lambda (m1 m2)
-       (method-more-specific-p gf m1 m2 generalizers)))))
+  (let* ((num-required (sb-pcl::arg-info-number-required (sb-pcl::gf-arg-info gf))) ; TODO duplicated above
+         (methods      (sb-mop:generic-function-methods gf))
+         (generalizers (loop
+                          :for i :of-type fixnum :from 0 :below num-required
+                          :for argument :in arguments
+                          :collect (generalizer-of-using-class gf argument i))))
+    (flet ((applicable-p (method)
+             (every #'specializer-accepts-p
+                    (sb-mop:method-specializers method) arguments))
+           (method< (method1 method2)
+             (method-more-specific-p gf method1 method2 generalizers)))
+      (declare (dynamic-extent #'applicable-p #'method<))
+      (sort (copy-list (remove-if-not #'applicable-p methods))
+            #'method<))))
 
 (defun method-more-specific-p (gf method1 method2 generalizers)
   (let ((lambda-list   (sb-mop:generic-function-lambda-list gf))
