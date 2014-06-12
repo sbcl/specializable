@@ -14,7 +14,7 @@
            "GENERALIZER-OF-USING-CLASS"
            "COMPUTE-APPLICABLE-METHODS-USING-GENERALIZERS"
            "GENERALIZER-EQUAL-HASH-KEY"
-           
+
            "DEFINE-EXTENDED-SPECIALIZER"))
 
 (in-package "SPECIALIZABLE")
@@ -72,19 +72,19 @@
 ;;; (defun intern-extended-specializer (gf sname)
 ;;;   (destructuring-bind (kind &rest args) sname
 ;;;     (setf (gethash sname (generic-function-extended-specializers gf))
-;;; 	  (apply (or (get kind 'extended-specializer-parser)
-;;; 		     (error "not declared as an extended specializer name: ~A"
-;;; 			    kind))
-;;; 		 gf
-;;; 		 args))))
+;;;       (apply (or (get kind 'extended-specializer-parser)
+;;;                  (error "not declared as an extended specializer name: ~A"
+;;;                         kind))
+;;;              gf
+;;;              args))))
 
 (defun make-extended-specializer (sname)
   (destructuring-bind (kind &rest args) sname
     (apply (or (get kind 'extended-specializer-parser)
-	       (error "not declared as an extended specializer name: ~A"
-		      kind))
-	   '|This is not a generic function| ;fixme, see comment above
-	   args)))
+               (error "not declared as an extended specializer name: ~A"
+                      kind))
+           '|This is not a generic function| ;fixme, see comment above
+           args)))
 
 ;;; from SBCL:
 
@@ -102,9 +102,9 @@
              ((typep name 'sb-mop:specializer) name)
              ((symbolp name) `(find-class ',name))
              ((consp name)
-	      (case (car name)
-		(eql `(sb-mop:intern-eql-specializer ,(cadr name)))
-		(t `(make-extended-specializer ',name))))
+              (case (car name)
+                (eql `(sb-mop:intern-eql-specializer ,(cadr name)))
+                (t `(make-extended-specializer ',name))))
              (t (error "unexpected specializer name")))))
     `(list ,@(mapcar #'parse snames))))
 
@@ -113,7 +113,7 @@
 ;;; FIXME: this is not actually sufficient argument checking
 (defun required-portion (gf args)
   (let ((number-required
-	 (sb-pcl::arg-info-number-required (sb-pcl::gf-arg-info gf))))
+         (sb-pcl::arg-info-number-required (sb-pcl::gf-arg-info gf))))
     (when (< (length args) number-required)
       (error "Too few arguments to generic function ~S." gf))
     (subseq args 0 number-required)))
@@ -255,10 +255,10 @@
   (sort
    (copy-list
     (remove-if-not #'(lambda (method)
-		       (every #'specializer-accepts-p
-			      (sb-mop:method-specializers method)
-			      arguments))
-		   (sb-mop:generic-function-methods gf)))
+                       (every #'specializer-accepts-p
+                              (sb-mop:method-specializers method)
+                              arguments))
+                   (sb-mop:generic-function-methods gf)))
    (let ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
                                (required-portion gf arguments))))
      (lambda (m1 m2)
