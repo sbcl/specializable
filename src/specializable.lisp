@@ -31,8 +31,18 @@
 
 (defclass specializable-generic-function (standard-generic-function)
   ((emf-table :initform (make-hash-table :test 'equal) :reader emf-table)
-   (cacheingp :initform t :initarg :cacheingp)
-   (single-arg-cacheing-p :initform t :initarg :single-arg-cacheing-p))
+   (disabled-optimizations :initarg  :disabled-optimizations
+                           :initform ()
+                           :reader   disabled-optimizations
+                           :documentation
+                           "Stores a list of keywords designating
+                            optimizations that should be disabled (for
+                            example for unit tests or performance
+                            measurements).
+
+                            Currently, the following designators are
+                            recognized: :cacheing, :single-arg-cacheing,
+                            :standard-discrimination."))
   (:metaclass sb-mop:funcallable-standard-class)
   (:default-initargs :method-class (find-class 'specializable-method)))
 
@@ -109,9 +119,10 @@
     ((gf specializable-generic-function) (g class))
   (sb-pcl::class-wrapper g))
 
-(defun first-arg-only-special-case (gf)
+(defun first-arg-only-special-case-p (gf)
   (let ((arg-info (sb-pcl::gf-arg-info gf)))
-    (and (slot-value gf 'single-arg-cacheing-p)
+    (and (not (member :single-arg-cacheing (disabled-optimizations gf)
+                      :test #'eq))
          (>= (sb-pcl::arg-info-number-required arg-info) 1)
          (every (lambda (x) (eql x t))
                 (cdr (sb-pcl::arg-info-metatypes arg-info))))))
@@ -135,13 +146,17 @@
 ;;; - DONE (in SBCL itself) interaction with TRACE et al.
 (defmethod sb-mop:compute-discriminating-function ((gf specializable-generic-function))
   (cond
-    ((only-has-standard-specializers-p gf) (call-next-method))
-    ((not (slot-value gf 'cacheingp))
+    ((and (not (member :standard-discrimination (disabled-optimizations gf)
+                       :test #'eq))
+          (only-has-standard-specializers-p gf))
+     (call-next-method))
+    ((member :cacheing (disabled-optimizations gf)
+             :test #'eq)
      (lambda (&rest args)
        (let ((generalizers (mapcar (lambda (x) (generalizer-of-using-class gf x))
                                    args)))
          (slow-method-lookup-and-call gf args generalizers))))
-    ((first-arg-only-special-case gf)
+    ((first-arg-only-special-case-p gf)
      (lambda (&rest args)
        (let* ((g (generalizer-of-using-class gf (car args)))
               (k (generalizer-equal-hash-key gf g))
@@ -177,7 +192,7 @@
       (slow-method-lookup gf args generalizers)
     (when cacheablep
       (let ((keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers)))
-        (if (first-arg-only-special-case gf)
+        (if (first-arg-only-special-case-p gf)
             (setf (gethash (car keys) (emf-table gf)) emf)
             (setf (gethash keys (emf-table gf)) emf))))
     (sb-pcl::invoke-emf emf args)))
