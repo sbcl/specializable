@@ -24,6 +24,14 @@
 ;;;     `generalizer-of-using-class', compute and return a list of
 ;;;     applicable methods.
 ;;;
+;;; When additional arguments have to be passed to the effective
+;;; method, a method can be defined on the generic function
+;;;
+;;;   compute-effective-arguments-function generic-function num-required
+;;;
+;;;     Return a function with lambda-list (args generalizers) which
+;;;     produces the \"effective argument list\".
+;;;
 ;;; Specializers used in methods of the generic function have to
 ;;; implement the protocol for extended specializers below. Similarly,
 ;;; for generalizers returned by `generalizers-of-using-class', the
@@ -38,6 +46,19 @@
 
     This is called once for each pair of required argument OBJECT and
     its position in the lambda-list ARG-POSITION."))
+
+(defgeneric compute-effective-arguments-function (generic-function num-required)
+  (:documentation
+   "Return a function for producing the \"effective argument\" list.
+
+    The returned function has the lambda-list (args generalizers) and
+    produces the \"effective argument list\" for a call of
+    GENERIC-FUNCTION when called with the lists of arguments and
+    generalizer objects of a particular generic function call.
+
+    One such effective argument list computation could consist in
+    injecting additional arguments for the effective method based on
+    the supplied generalizers."))
 
 (defgeneric compute-applicable-methods-using-generalizers (generic-function generalizers)
   (:documentation

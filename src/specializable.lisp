@@ -112,6 +112,10 @@
     ((gf specializable-generic-function) (g class))
   (sb-pcl::class-wrapper g))
 
+(defmethod compute-effective-arguments-function ((generic-function specializable-generic-function)
+                                                 num-required)
+  nil)
+
 (defun first-arg-only-special-case-p (gf)
   (let ((arg-info (sb-pcl::gf-arg-info gf)))
     (and (not (member :single-arg-cacheing (disabled-optimizations gf)
@@ -144,10 +148,13 @@
     (return-from sb-mop:compute-discriminating-function (call-next-method)))
 
   ;; FIXME: this is not actually sufficient argument checking
-  (let ((num-required
-         (sb-pcl::arg-info-number-required (sb-pcl::gf-arg-info gf)))
-        (emf-table (emf-table gf)))
+  (let* ((num-required
+          (sb-pcl::arg-info-number-required (sb-pcl::gf-arg-info gf)))
+         (arguments-function
+          (compute-effective-arguments-function gf num-required))
+         (emf-table (emf-table gf)))
     (declare (type fixnum num-required) ; TODO correct?
+             (type (or null function) arguments-function)
              (type hash-table emf-table))
     (flet ((check-arguments (args)
              (declare (type list args))
@@ -161,7 +168,11 @@
                 :for cell :of-type cons :on into
                 :do (setf (car cell) (generalizer-of-using-class gf arg i))))
            (compute-hash-key (generalizer)
-             (generalizer-equal-hash-key gf generalizer)))
+             (generalizer-equal-hash-key gf generalizer))
+           (effective-arguments (generalizers args)
+             (declare (type list generalizers args))
+             (locally (declare (function arguments-function))
+               (funcall arguments-function args generalizers))))
       (cond
         ((member :cacheing (disabled-optimizations gf)
                  :test #'eq)
@@ -170,20 +181,35 @@
            (let ((generalizers (make-list num-required)))
              (declare (dynamic-extent generalizers))
              (compute-generalizers generalizers args)
-             (slow-method-lookup-and-call gf args generalizers))))
+             (slow-method-lookup-and-call
+              gf (if arguments-function
+                     (effective-arguments generalizers args)
+                     args)
+              generalizers))))
         ((first-arg-only-special-case-p gf)
          (lambda (&rest args)
            (check-arguments args)
            (let* ((generalizer (generalizer-of-using-class gf (first args) 0))
+                  (all-generalizers)
                   (key (generalizer-equal-hash-key gf generalizer))
                   (emfun (gethash key emf-table nil)))
-             (if emfun
-                 (sb-pcl::invoke-emf emfun args)
-                 (let ((rest-generalizers (make-list (1- num-required))))
-                   (when (> 1 num-required)
-                     (compute-generalizers rest-generalizers (rest args)))
-                   (slow-method-lookup-and-call
-                    gf args (list* generalizer rest-generalizers)))))))
+             (flet ((all-generalizers ()
+                      (cond
+                        (all-generalizers)
+                        ((= 1 num-required)
+                         (setf all-generalizers (list generalizer)))
+                        (t
+                         (setf all-generalizers (make-list num-required))
+                         (setf (car all-generalizers) generalizer)
+                         (compute-generalizers (rest all-generalizers) (rest args))
+                         all-generalizers))))
+               (let ((effective-args (if arguments-function
+                                         (effective-arguments (all-generalizers) args)
+                                         args)))
+                 (if emfun
+                     (sb-pcl::invoke-emf emfun effective-args)
+                     (slow-method-lookup-and-call
+                      gf effective-args (all-generalizers))))))))
         (t
          (lambda (&rest args)
            (check-arguments args)
@@ -192,10 +218,14 @@
              (declare (dynamic-extent generalizers keys))
              (compute-generalizers generalizers args)
              (map-into keys #'compute-hash-key generalizers)
-             (let* ((emfun (gethash keys emf-table nil)))
+             (let ((emfun (gethash keys emf-table nil))
+                   (effective-args (if arguments-function
+                                       (effective-arguments generalizers args)
+                                       args)))
                (if emfun
-                   (sb-pcl::invoke-emf emfun args)
-                   (slow-method-lookup-and-call gf args generalizers))))))))))
+                   (sb-pcl::invoke-emf emfun effective-args)
+                   (slow-method-lookup-and-call
+                    gf effective-args generalizers))))))))))
 
 (defmethod reinitialize-instance :after ((gf specializable-generic-function) &key)
   (clrhash (emf-table gf)))
