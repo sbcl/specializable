@@ -147,9 +147,7 @@
 (defmethod specializer< ((gf accept-generic-function) (s1 accept-specializer) (s2 sb-mop:eql-specializer) generalizer)
   '>)
 (defmethod specializer< ((gf accept-generic-function) (s1 sb-mop:specializer) (s2 accept-specializer) generalizer)
-  (ecase (specializer< gf s2 s1 generalizer)
-    ((>) '<)
-    ((<) '>)))
+  (invert-specializer<-relation (specializer< gf s2 s1 generalizer)))
 (defmethod specializer< ((gf accept-generic-function) (s1 sb-mop:specializer) (s2 sb-mop:specializer) (g accept-generalizer))
   (specializer< gf s1 s2 (next g)))
 

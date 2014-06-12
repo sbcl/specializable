@@ -47,9 +47,7 @@
   (declare (ignore generalizer))
   '>)
 (defmethod specializer< ((gf signum-generic-function) (s1 sb-mop:specializer) (s2 signum-specializer) generalizer)
-  (ecase (specializer< gf s2 s1 generalizer)
-    ((<) '>)
-    ((>) '<)))
+  (invert-specializer<-relation (specializer< gf s2 s1 generalizer)))
 ;;; note: the need for this method is tricky: we need to translate
 ;;; from generalizers that our specializers "know" about to those that
 ;;; ordinary generic functions and specializers might know about.

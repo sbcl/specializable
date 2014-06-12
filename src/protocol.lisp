@@ -155,3 +155,9 @@
     w.r.t. GENERALIZER if GENERALIZER occurs in the CPLs of both
     SPECIALIZER1 and SPECIALIZER2 and the position in the CPL of
     SPECIALIZER1 is smaller."))
+
+(defun invert-specializer<-relation (value)
+  (case value
+    (< '>)
+    (> '<)
+    (t value)))
