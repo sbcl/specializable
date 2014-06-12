@@ -1,0 +1,33 @@
+#+TITLE:       README
+#+AUTHOR:      Christophe Rhodes \and Jan Moringen
+#+DESCRIPTION: Extended CLOS specializers - SBCL only
+#+KEYWORDS:    common lisp, clos, mop, amop, specializer, generalizer
+#+LANGUAGE:    en
+
+* STARTED Introduction
+  The =specializable= system extends CLOS (the Common Lisp Object
+  System) and its meta-object protocol with a form of generalized
+  dispatch by introducing a new =generalizer= meta-object.
+
+  *This system only works in the [[www.sbcl.org][SBCL]] Common Lisp implementation.*
+
+  Based on the above extension, the following extended =specializer= s
+  are also provided:
+  + =cons-specializer= for dispatch based on the contents of the =car=
+    slot of =cons= objects
+  + =accept-specializer= for dispatch based on HTTP content
+    negotiation
+
+  A detailed description can be found in the associated
+  publication [fn:1].
+
+* Footnotes
+
+[fn:1] Rhodes, C., Moringen, J., Lichteblau, D.: Generalizers: New
+       Metaobjects for Generalized Dispatch (2014). Available at
+       http://arxiv.org/abs/1403.2765.
+
+* Settings                                                         :noexport:
+
+#+OPTIONS: H:2 num:nil toc:nil \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
+#+OPTIONS: TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:not-in-toc
