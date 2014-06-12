@@ -29,9 +29,10 @@
 ;;; for generalizers returned by `generalizers-of-using-class', the
 ;;; generalizer protocol below has to be implemented.
 
-(defgeneric generalizers-of-using-class (generic-function args)
+(defgeneric generalizers-of-using-class (generic-function args num-required)
   (:documentation
-   "Return a list of generalizer objects for ARGS.
+   "Return a list of generalizer objects for the first NUM-REQUIRED
+    elements of ARGS.
 
     TODO extend"))
 
