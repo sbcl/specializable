@@ -46,6 +46,12 @@
     This is called once for each pair of required argument OBJECT and
     its position in the lambda-list ARG-POSITION."))
 
+(defgeneric compute-effective-arguments-function (generic-function num-required)
+  (:documentation
+   "TODO return a function with lambda-list (args generalizers) which
+    would in turn produce the \"effective argument list\" when called,
+    for example by injecting additional arguments."))
+
 (defgeneric compute-applicable-methods-using-generalizers (generic-function generalizers)
   (:documentation
    "For the list of generalizer objects GENERALIZERS, return two values:
