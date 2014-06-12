@@ -3,21 +3,7 @@
 ;;;
 ;;; http://www.lichteblau.com/git/?p=specializable.git;a=blob_plain;f=specializable.lisp;hb=eb30d235951c3c1d128811278760f1db36cd336c
 
-(defpackage "SPECIALIZABLE"
-  (:use "CL" "SB-EXT")
-  (:export "SPECIALIZABLE-GENERIC-FUNCTION" "SPECIALIZABLE-METHOD"
-           "EXTENDED-SPECIALIZER"
-
-           "SPECIALIZER-ACCEPTS-P" "SPECIALIZER-ACCEPTS-GENERALIZER-P"
-           "SPECIALIZER<"
-
-           "GENERALIZER-OF-USING-CLASS"
-           "COMPUTE-APPLICABLE-METHODS-USING-GENERALIZERS"
-           "GENERALIZER-EQUAL-HASH-KEY"
-
-           "DEFINE-EXTENDED-SPECIALIZER"))
-
-(in-package "SPECIALIZABLE")
+(cl:in-package "SPECIALIZABLE")
 
 (defclass extended-specializer (sb-mop:specializer)
   ;; FIXME: this doesn't actually do quite what I wanted.
@@ -118,7 +104,7 @@
       (error "Too few arguments to generic function ~S." gf))
     (subseq args 0 number-required)))
 
-(defgeneric generalizer-equal-hash-key (generic-function generalizer))
+
 (defmethod generalizer-equal-hash-key
     ((gf specializable-generic-function) (g class))
   (sb-pcl::class-wrapper g))
@@ -204,12 +190,11 @@
              (em (sb-mop:compute-effective-method gf mc methods)))
         (sb-pcl::make-effective-method-function gf em))))
 
-;; new, not in closette
-(defgeneric generalizer-of-using-class (generic-function object))
+
+
 (defmethod generalizer-of-using-class ((generic-function specializable-generic-function) object)
   (class-of object))
 
-(defgeneric specializer-accepts-generalizer-p (gf specializer generalizer))
 (defmethod specializer-accepts-generalizer-p
     ((gf specializable-generic-function) (specializer class) (generalizer class))
   (if (subtypep generalizer specializer)
@@ -221,7 +206,6 @@
       (values t nil)
       (values nil t)))
 
-(defgeneric compute-applicable-methods-using-generalizers (gf generalizers))
 (defmethod compute-applicable-methods-using-generalizers
     ((gf specializable-generic-function) generalizers)
   ;; differs from closette
@@ -242,8 +226,6 @@
         #'sorter)
        result-definitive-p))))
 
-;; new, not in closette
-(defgeneric specializer-accepts-p (specializer object))
 (defmethod specializer-accepts-p ((specializer class) object)
   (typep object specializer))
 (defmethod specializer-accepts-p ((specializer sb-mop:eql-specializer) object)
@@ -278,30 +260,6 @@
                (<      (return t))
                (=)
                ((> /=) (return nil)))))))
-
-;; new, not in closette
-(defgeneric specializer< (generic-function specializer1 specializer2 generalizer)
-  (:documentation
-   "Compare the specificity of SPECIALIZER1 and SPECIALIZER2
-    w.r.t. GENERALIZER and return
-
-    =  if SPECIALIZER1 and SPECIALIZER2 are equally specific
-       w.r.t. GENERALIZER (TODO does that imply SAME-SPECIALIZER-P)?
-
-    <  if SPECIALIZER1 is more specific than SPECIALIZER2
-       w.r.t. GENERALIZER
-
-    >  if SPECIALIZER1 is less specific than SPECIALIZER2
-       w.r.t. GENERALIZER
-
-    /= if there is no relation between the respective specificity of
-       SPECIALIZER1 and SPECIALIZER2 w.r.t. GENERALIZER
-
-    For example, when SPECIALIZER1, SPECIALIZER2 and GENERALIZER are
-    of type CLASS, SPECIALIZER1 is more specific than SPECIALIZER2
-    w.r.t. GENERALIZER if GENERALIZER occurs in the CPLs of both
-    SPECIALIZER1 and SPECIALIZER2 and the position in the CPL of
-    SPECIALIZER1 is smaller."))
 
 (defmethod specializer<
     ((gf specializable-generic-function) (s1 class) (s2 class) (generalizer class))

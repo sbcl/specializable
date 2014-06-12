@@ -11,4 +11,7 @@
   :license     "TODO"
   :description "Generalized specializers - SBCL only"
   :components  ((:module "src"
-                 :components ((:file       "specializable")))))
+                 :serial t
+                 :components ((:file       "package")
+                              (:file       "protocol")
+                              (:file       "specializable")))))
