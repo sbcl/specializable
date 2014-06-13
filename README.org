@@ -19,13 +19,17 @@
     negotiation
 
   A detailed description can be found in the associated
-  publication [fn:1].
+  publications [fn:1][fn:2].
 
 * Footnotes
 
 [fn:1] Rhodes, C., Moringen, J., Lichteblau, D.: Generalizers: New
        Metaobjects for Generalized Dispatch (2014). Available at
        http://arxiv.org/abs/1403.2765.
+
+[fn:2] Newton, J., Rhodes, C.: Custom Specializers in Object-Oriented
+       Lisp (2008). Available at
+       http://www.jucs.org/jucs_14_20/custom_specializers_in_object.
 
 * Settings                                                         :noexport:
 
