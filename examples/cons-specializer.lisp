@@ -1,130 +1,89 @@
-(in-package "SPECIALIZABLE")
+;;;; cons-specializer.lisp --- cons specializer examples.
+;;;;
+;;;; Copyright (C) 2013, 2014 Christophe Rhodes,
+;;;;
+;;;; Author: Christophe Rhodes <csr21@cantab.net>
 
-;;;; CONS-SPECIALIZER example
-(defclass cons-specializer (extended-specializer)
-  ((car :initarg :car :reader %car)))
-(defclass cons-generic-function (specializable-generic-function)
-  ()
-  (:metaclass sb-mop:funcallable-standard-class))
+(cl:defpackage #:cons-specializer.example
+  (:use
+   #:cl
+   #:cons-specializer))
 
-(define-extended-specializer cons (gf car)
-  (make-instance 'cons-specializer :car car))
-(defmethod sb-pcl:unparse-specializer-using-class
-    ((gf cons-generic-function) (specializer cons-specializer))
-  `(cons ,(%car specializer)))
-(defmethod sb-pcl::same-specializer-p
-    ((s1 cons-specializer) (s2 cons-specializer))
-  (eql (%car s1) (%car s2)))
+(cl:in-package #:cons-specializer.example)
 
-;;; FIXME: make a proper generalizer
-(defmethod generalizer-equal-hash-key ((gf cons-generic-function) (g symbol))
-  g)
-(defmethod generalizer-of-using-class ((gf cons-generic-function) arg)
-  (typecase arg
-    ((cons symbol) (car arg))
-    (t (call-next-method))))
-(defmethod specializer-accepts-generalizer-p ((gf cons-generic-function) (specializer cons-specializer) thing)
-  (if (eql (%car specializer) thing)
-      (values t t)
-      (values nil t)))
-(defmethod specializer-accepts-generalizer-p ((gf cons-generic-function) (specializer sb-mop:specializer) (thing symbol))
-  (specializer-accepts-generalizer-p gf specializer (find-class 'cons)))
+;;; Walk example
 
-;;; note: this method operates in full knowledge of the object, and so
-;;; does not require the generic function as an argument.
-(defmethod specializer-accepts-p ((specializer cons-specializer) obj)
-  (and (consp obj)
-       (eql (car obj) (%car specializer))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defgeneric walk (form)
+    (:generic-function-class cons-generic-function)))
 
-(defmethod specializer< ((gf cons-generic-function) (s1 cons-specializer) (s2 cons-specializer) generalizer)
-  (declare (ignore generalizer))
-  (if (eql (%car s1) (%car s2))
-      '=
-      '/=))
-(defmethod specializer< ((gf cons-generic-function) (s1 cons-specializer) (s2 class) generalizer)
-  (declare (ignore generalizer))
-  '<)
-(defmethod specializer< ((gf cons-generic-function) (s1 cons-specializer) (s2 sb-mop:eql-specializer) generalizer)
-  (declare (ignore generalizer))
-  '>)
-(defmethod specializer< ((gf cons-generic-function) (s1 sb-mop:specializer) (s2 cons-specializer) generalizer)
-  (ecase (specializer< gf s2 s1 generalizer)
-    ((<) '>)
-    ((>) '<)))
-;;; note: the need for this method is tricky: we need to translate
-;;; from generalizers that our specializers "know" about to those that
-;;; ordinary generic functions and specializers might know about.
-(defmethod specializer< ((gf cons-generic-function) (s1 sb-mop:specializer) (s2 sb-mop:specializer) (generalizer symbol))
-  (specializer< gf s1 s2 (find-class 'cons)))
-
-;;; tests / examples
-(eval
- '(progn
-   (defgeneric walk (form)
-     (:generic-function-class cons-generic-function))
-   (defmethod walk ((form symbol))
-     `(lookup ,form))
-   (defmethod walk ((form cons))
-     `(call (flookup ,(car form)) (list ,@(mapcar #'walk (cdr form)))))
-   (defmethod walk ((form (cons quote)))
-     (cadr form))
-   (defmethod walk ((form (cons let)))
-     (let ((bindings (cadr form)))
-       `(with-bindings ,bindings ,@(mapcar #'walk (cddr form)))))
+(defmethod walk ((form symbol))
+  `(lookup ,form))
+(defmethod walk ((form cons))
+  `(call (flookup ,(car form)) (list ,@(mapcar #'walk (cdr form)))))
+(defmethod walk ((form (cons quote)))
+  (cadr form))
+(defmethod walk ((form (cons let)))
+  (let ((bindings (cadr form)))
+    `(with-bindings ,bindings ,@(mapcar #'walk (cddr form)))))
 
-   (assert (equal (walk t) '(lookup t)))
-   (assert (equal (walk nil) '(lookup nil)))
-   (assert (equal (walk '(foo bar)) '(call (flookup foo) (list (lookup bar)))))
-   (assert (equal (walk '(quote bar)) 'bar))
-   (assert (equal (walk '(let foo bar)) '(with-bindings foo (lookup bar))))))
+(assert (equal (walk t) '(lookup t)))
+(assert (equal (walk nil) '(lookup nil)))
+(assert (equal (walk '(foo bar)) '(call (flookup foo) (list (lookup bar)))))
+(assert (equal (walk '(quote bar)) 'bar))
+(assert (equal (walk '(let foo bar)) '(with-bindings foo (lookup bar))))
 
-(eval
- '(progn
-   (defgeneric multiple-class-specializers (x)
-     (:generic-function-class cons-generic-function)
-     (:method-combination list))
-   (defmethod multiple-class-specializers list ((x t)) 't)
-   (defmethod multiple-class-specializers list ((x cons)) 'cons)
-   (defmethod multiple-class-specializers list ((x (cons foo))) '(cons foo))
-   (defmethod multiple-class-specializers list ((x (cons bar))) '(cons bar))
-   (defmethod multiple-class-specializers list ((x list)) 'list)
-   (defmethod multiple-class-specializers list ((x null)) 'null)
-   (defmethod multiple-class-specializers list ((x (eql nil))) '(eql nil))
+;;; Multiple class specializers example
 
-   (assert (equal (multiple-class-specializers nil) '((eql nil) null list t)))
-   (assert (equal (multiple-class-specializers t) '(t)))
-   (assert (equal (multiple-class-specializers (cons nil nil)) '(cons list t)))
-   (assert (equal (multiple-class-specializers (cons 'foo nil)) '((cons foo) cons list t)))
-   (assert (equal (multiple-class-specializers (list 'bar nil t 3)) '((cons bar) cons list t)))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defgeneric multiple-class-specializers (x)
+    (:generic-function-class cons-generic-function)
+    (:method-combination list)))
 
-(eval
- '(progn
-   (defgeneric keyword-args (x &key key1)
-     (:generic-function-class cons-generic-function))
-   (defmethod keyword-args ((x integer) &key key1 key2) (1+ x))
-   (defmethod keyword-args ((x float) &key key1 key3) (+ x 2.0))
-   (defmethod keyword-args :after ((x double-float) &key &allow-other-keys)
-              nil)
-   (assert (= (keyword-args 1) 2))
-   (assert (= (keyword-args 1 :key1 t) 2))
-   (assert (= (keyword-args 1 :key2 t) 2))
-   (assert (= (keyword-args 1 :key1 t :key2 t) 2))
-   (assert (nth-value 1 (ignore-errors (keyword-args 1 :key1 t :key3 t))))
-   (assert (nth-value 1 (ignore-errors (keyword-args 1 :key3 t))))
-   (assert (= (keyword-args 1 :key3 t :allow-other-keys t) 2))
+(defmethod multiple-class-specializers list ((x t)) 't)
+(defmethod multiple-class-specializers list ((x cons)) 'cons)
+(defmethod multiple-class-specializers list ((x (cons foo))) '(cons foo))
+(defmethod multiple-class-specializers list ((x (cons bar))) '(cons bar))
+(defmethod multiple-class-specializers list ((x list)) 'list)
+(defmethod multiple-class-specializers list ((x null)) 'null)
+(defmethod multiple-class-specializers list ((x (eql nil))) '(eql nil))
 
-   (assert (= (keyword-args 1.0) 3.0))
-   (assert (= (keyword-args 1.0 :key1 t) 3.0))
-   (assert (= (keyword-args 1.0 :key3 t) 3.0))
-   (assert (= (keyword-args 1.0 :key1 t :key3 t) 3.0))
-   (assert (nth-value 1 (ignore-errors (keyword-args 1.0f0 :key1 t :key2 t))))
-   (assert (nth-value 1 (ignore-errors (keyword-args 1.0f0 :key2 t))))
-   (assert (= (keyword-args 1.0 :key2 t :allow-other-keys t) 3.0))
+(assert (equal (multiple-class-specializers nil) '((eql nil) null list t)))
+(assert (equal (multiple-class-specializers t) '(t)))
+(assert (equal (multiple-class-specializers (cons nil nil)) '(cons list t)))
+(assert (equal (multiple-class-specializers (cons 'foo nil)) '((cons foo) cons list t)))
+(assert (equal (multiple-class-specializers (list 'bar nil t 3)) '((cons bar) cons list t)))
 
-   (assert (= (keyword-args 1.0d0) 3.0d0))
-   (assert (= (keyword-args 1.0d0 :key1 t) 3.0d0))
-   (assert (= (keyword-args 1.0d0 :key3 t) 3.0d0))
-   (assert (= (keyword-args 1.0d0 :key1 t :key3 t) 3.0d0))
-   (assert (= (keyword-args 1.0d0 :key1 t :key2 t) 3.0d0))
-   (assert (= (keyword-args 1.0d0 :key2 t) 3.0d0))
-   (assert (= (keyword-args 1.0d0 :key2 t :allow-other-keys t) 3.0d0))))
+;;; Keyword args example
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defgeneric keyword-args (x &key key1)
+    (:generic-function-class cons-generic-function)))
+
+(defmethod keyword-args ((x integer) &key key1 key2) (1+ x))
+(defmethod keyword-args ((x float) &key key1 key3) (+ x 2.0f0))
+(defmethod keyword-args :after ((x double-float) &key &allow-other-keys)
+  nil)
+(assert (= (keyword-args 1) 2))
+(assert (= (keyword-args 1 :key1 t) 2))
+(assert (= (keyword-args 1 :key2 t) 2))
+(assert (= (keyword-args 1 :key1 t :key2 t) 2))
+(assert (nth-value 1 (ignore-errors (keyword-args 1 :key1 t :key3 t))))
+(assert (nth-value 1 (ignore-errors (keyword-args 1 :key3 t))))
+(assert (= (keyword-args 1 :key3 t :allow-other-keys t) 2))
+
+(assert (= (keyword-args 1.0f0) 3.0f0))
+(assert (= (keyword-args 1.0f0 :key1 t) 3.0f0))
+(assert (= (keyword-args 1.0f0 :key3 t) 3.0f0))
+(assert (= (keyword-args 1.0f0 :key1 t :key3 t) 3.0f0))
+(assert (nth-value 1 (ignore-errors (keyword-args 1.0f0 :key1 t :key2 t))))
+(assert (nth-value 1 (ignore-errors (keyword-args 1.0f0 :key2 t))))
+(assert (= (keyword-args 1.0f0 :key2 t :allow-other-keys t) 3.0f0))
+
+(assert (= (keyword-args 1.0d0) 3.0d0))
+(assert (= (keyword-args 1.0d0 :key1 t) 3.0d0))
+(assert (= (keyword-args 1.0d0 :key3 t) 3.0d0))
+(assert (= (keyword-args 1.0d0 :key1 t :key3 t) 3.0d0))
+(assert (= (keyword-args 1.0d0 :key1 t :key2 t) 3.0d0))
+(assert (= (keyword-args 1.0d0 :key2 t) 3.0d0))
+(assert (= (keyword-args 1.0d0 :key2 t :allow-other-keys t) 3.0d0))
