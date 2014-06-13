@@ -139,9 +139,10 @@
     (t (let ((q1 (q (media-type s1) (tree generalizer)))
              (q2 (q (media-type s2) (tree generalizer))))
          (cond
-           ((= q1 q2) '=)
-           ((< q1 q2) '>)
-           (t '<))))))
+           ((not (and q1 q2)) '/=)
+           ((= q1 q2)         '=)
+           ((< q1 q2)         '>)
+           (t                 '<))))))
 (defmethod specializer< ((gf accept-generic-function) (s1 accept-specializer) (s2 class) generalizer)
   '<)
 (defmethod specializer< ((gf accept-generic-function) (s1 accept-specializer) (s2 sb-mop:eql-specializer) generalizer)
