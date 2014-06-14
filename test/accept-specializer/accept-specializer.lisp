@@ -40,8 +40,8 @@
      ("bar"                             (string t))
 
      ;; One content type, with and without q
-     ("*/*"                             ("audio/mp3" "text/html" string t)) ; TODO how are these ordered?
-     ("*/*;q=1.0"                       ("audio/mp3" "text/html" string t))
+     ("*/*"                             ("audio/mp3" "text/html" string t)) ; since (string< "audio/mp3" "text/html")
+     ("*/*;q=1.0"                       ("audio/mp3" "text/html" string t)) ; likewise
      ("text/*"                          ("text/html" string t))
      ("text/*;q=0.15"                   ("text/html" string t))
      ("text/html"                       ("text/html" string t))
@@ -52,7 +52,8 @@
      ("audio/mp3;q=0.1"                 ("audio/mp3" string t))
 
      ;; Multiple content types, with and without q
-     ("text/html,audio/mp3"             ("audio/mp3" "text/html" string t)) ; TODO how are these ordered?
+     ("text/html,audio/mp3"             ("text/html" "audio/mp3" string t)) ; since text/html earlier in accept string
+     ("audio/mp3,text/html"             ("audio/mp3" "text/html" string t)) ; opposite
      ("text/html;q=0.1,audio/mp3"       ("audio/mp3" "text/html" string t))
      ("text/html,audio/mp3;q=0.2"       ("text/html" "audio/mp3" string t))
      ("text/html;q=0.1,audio/mp3;q=0.2" ("audio/mp3" "text/html" string t))
@@ -101,19 +102,19 @@
      ("bar"                             sb-pcl::long-method-combination-error)
 
      ;; One content type, with and without q
-     ("*/*"                             webp) ; TODO how are these ordered?
-     ("*/*;q=1.0"                       webp)
-     ("text/*"                          plain) ; TODO plain vs. html?
-     ("text/*;q=0.15"                   plain)
-     ("text/html"                       html)
-     ("text/html;q=0.1"                 html)
+     ("*/*"                             mp3)  ; because "audio/mp3" STRING< everything else
+     ("*/*;q=1.0"                       mp3)  ; likewise
+     ("text/*"                          html) ; because (string< "text/html" "text/plain")
+     ("text/*;q=0.15"                   html) ; likewise
+     ("text/plain"                      plain)
+     ("text/plain;q=0.1"                plain)
      ("audio/*"                         mp3)
      ("audio/*;q=0.01"                  mp3)
      ("audio/mp3"                       mp3)
      ("audio/mp3;q=0.1"                 mp3)
 
      ;; Multiple content types, with and without q
-     ("text/html,audio/mp3"             html) ; TODO how are these ordered?
+     ("text/html,audio/mp3"             html) ; because "text/html" earlier in accpet string
      ("text/html;q=0.1,audio/mp3"       mp3)
      ("text/html,audio/mp3;q=0.2"       html)
      ("text/html;q=0.1,audio/mp3;q=0.2" mp3)

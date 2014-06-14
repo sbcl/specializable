@@ -10,6 +10,21 @@
   (name (error "missing name"))
   (children nil)
   (q nil))
+(defun find-child (name node)
+  (declare (type string name)
+           (type accept-node node))
+  (let* ((children (accept-node-children node))
+         (position (position name (accept-node-children node)
+                             :key #'accept-node-name :test #'string=)))
+    (when position
+      (values (nth position children) position (length children)))))
+(defun append-child (child node)
+ (setf (accept-node-children node)
+       (append (accept-node-children node) (list child)))
+ child)
+(defun ensure-child (name node)
+  (or (find-child name node)
+      (append-child (make-accept-node :name name) node)))
 (defun print-accept-tree (tree stream)
   (let (*stack*)
     (declare (special *stack*))
@@ -42,12 +57,19 @@
 (defun q (media-type accept-tree)
   (let* ((pos (position #\/ media-type))
          (type (subseq media-type 0 pos))
-         (subtype (subseq media-type (1+ pos)))
-         (type-node (find type (accept-node-children accept-tree) :key #'accept-node-name :test #'string=))
-         (subtype-node (and type-node (find subtype (accept-node-children type-node) :key #'accept-node-name :test #'string=))))
-    (or (and subtype-node (accept-node-q subtype-node))
-        (and type-node (accept-node-q type-node))
-        (accept-node-q accept-tree))))
+         (subtype (subseq media-type (1+ pos))))
+    (labels ((find-node (node position base types)
+               (multiple-value-bind (child-node child-position child-length)
+                   (when types (find-child (first types) node))
+                 (if child-node
+                     (find-node child-node
+                                (+ position (* base (1+ child-position)))
+                                (* base (1+ child-length))
+                                (rest types))
+                     (values node position)))))
+      (multiple-value-bind (node position)
+          (find-node accept-tree 0 1 (list type subtype))
+        (values (accept-node-q node) position)))))
 
 (defun q-ok (media-type accept-tree)
   (let ((q (q media-type accept-tree)))
@@ -55,14 +77,10 @@
 
 (defun insert (range q tree)
   (labels ((ensure-node (range tree)
-             (cond
-               ((null range) tree)
-               (t (ensure-node (cdr range)
-                               (or (find (car range) (accept-node-children tree)
-                                         :key #'accept-node-name :test #'string=)
-                                   (car (push
-                                         (make-accept-node :name (car range))
-                                         (accept-node-children tree)))))))))
+             (if (null range)
+                 tree
+                 (ensure-node
+                  (rest range) (ensure-child (first range) tree)))))
     (let ((node (ensure-node range tree)))
       ;; we could choose different behaviour here
       (setf (accept-node-q node) q))
@@ -86,7 +104,6 @@
                                           (list subtype))))))
           (insert range q result))))))
 
-;;; FIXME: tiebreaker predicate (maybe defaulting to string<)?
 (defclass accept-specializer (extended-specializer)
   ((media-type :initarg :media-type :type string :reader media-type)))
 (defmethod print-object ((o accept-specializer) s)
@@ -135,15 +152,30 @@
   nil)
 
 (defmethod specializer< ((gf accept-generic-function) (s1 accept-specializer) (s2 accept-specializer) generalizer)
-  (cond
-    ((string= (media-type s1) (media-type s2)) '=)
-    (t (let ((q1 (q (media-type s1) (tree generalizer)))
-             (q2 (q (media-type s2) (tree generalizer))))
-         (cond
-           ((not (and q1 q2)) '/=)
-           ((= q1 q2)         '=)
-           ((< q1 q2)         '>)
-           (t                 '<))))))
+  (let ((media-type1 (media-type s1))
+        (media-type2 (media-type s2))
+        %tree %q1 p1 %q2 p2) ; poor person's lazy evaluation
+    (symbol-macrolet
+        ((tree (or %tree (setf %tree (tree generalizer))))
+         (q1 (or %q1 (setf (values %q1 p1) (q media-type1 tree))))
+         (q2 (or %q2 (setf (values %q2 p2) (q media-type2 tree)))))
+      (cond
+        ((string= media-type1 media-type2) '=)
+        ((not (and q1 q2))                 '/=)
+        ((< q1 q2)                         '>)
+        ((> q1 q2)                         '<)
+        ;; Implies different media types but q1 = q2. RFC 2616,
+        ;; Section 14.1 (Accept) does not specify a tie breaker for
+        ;; media-types with identical q value. We arbitrarily prefer
+        ;; one based on the position of the corresponding node in the
+        ;; accept tree.
+        ((< p1 p2)                         '<)
+        ((> p1 p2)                         '>)
+        ;; Implies different media types but same node in accept tree
+        ;; (e.g. "*/*" or "SOMETHING/*" is the best match for both
+        ;; media types). Use media type strings as tiebreaker.
+        ((string< media-type1 media-type2) '<)
+        (t                                 '>)))))
 (defmethod specializer< ((gf accept-generic-function) (s1 accept-specializer) (s2 class) generalizer)
   '<)
 (defmethod specializer< ((gf accept-generic-function) (s1 accept-specializer) (s2 sb-mop:eql-specializer) generalizer)
