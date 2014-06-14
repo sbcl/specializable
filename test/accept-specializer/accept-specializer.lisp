@@ -132,7 +132,8 @@
     (:method-combination content-negotiation/or)))
 
 (defmethod cn/or-test or ((request (accept "audio/mp3")))
-  'mp3)
+  (when (typep request '(eql "audio/mp3"))
+    'mp3))
 (defmethod cn/or-test or ((request (accept "image/webp")))
   'webp)
 (defmethod cn/or-test :around ((request t))
@@ -146,4 +147,7 @@
      (destructuring-bind (input expected) spec
        (is (equal expected (cn/or-test input)))))
 
-   '()))
+   '(("audio/mp3"            mp3)
+     ("audio/mp3;q=1.0"      nil)
+     ("image/webp"           webp)
+     ("audio/mp3;image/webp" webp))))

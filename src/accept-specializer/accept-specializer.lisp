@@ -223,7 +223,7 @@
           (wrap form)))))
 (define-method-combination content-negotiation/or ()
   ((around (:around))
-   (primary () :required t))
+   (primary (or) :required t))
   (:arguments request)
   (labels ((transform/1 (method)
              `(make-method
