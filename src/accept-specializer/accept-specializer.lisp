@@ -248,7 +248,8 @@
                               (,@(rest around) (make-method ,form))))
           (wrap form)))))
 
-(defmethod generalizer-of-using-class ((gf accept-generic-function) (s string))
+(defmethod generalizer-of-using-class ((gf accept-generic-function)
+                                       (s string) arg-position)
   (make-instance 'accept-generalizer
                  :header s
                  :next (call-next-method)))

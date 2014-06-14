@@ -6,7 +6,8 @@
 
 (cl:in-package #:accept-specializer)
 
-(defmethod generalizer-of-using-class ((gf accept-generic-function) (arg tbnl:request))
+(defmethod generalizer-of-using-class ((gf accept-generic-function)
+                                       (arg tbnl:request) arg-position)
   (make-instance 'accept-generalizer
                  :header (tbnl:header-in :accept arg)
                  :next (call-next-method)))

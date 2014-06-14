@@ -209,11 +209,13 @@
 
 (defmethod generalizers-of-using-class ((generic-function specializable-generic-function)
                                         args num-required)
-  (map-into (make-list num-required)
-            (lambda (arg) (generalizer-of-using-class generic-function arg))
-            args))
+  (loop ; TODO check whether this is as efficient as (map-into (make-list num-required) ...)
+     :for i :of-type fixnum :from 0 :below num-required
+     :for arg in args
+     :collect (generalizer-of-using-class generic-function arg i)))
 
-(defmethod generalizer-of-using-class ((generic-function specializable-generic-function) object)
+(defmethod generalizer-of-using-class ((generic-function specializable-generic-function)
+                                       object arg-position)
   (class-of object))
 
 (defmethod specializer-accepts-generalizer-p

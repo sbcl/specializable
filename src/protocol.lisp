@@ -37,12 +37,14 @@
     TODO extend"))
 
 ;; new, not in closette
-(defgeneric generalizer-of-using-class (generic-function object)
+(defgeneric generalizer-of-using-class (generic-function object arg-position)
   (:documentation
    "Return a generalizer object representing OBJECT (an argument with
-    which GENERIC-FUNCTION is being called).
+    which GENERIC-FUNCTION is being called). ARG-POSITION is the
+    position of object in the lambda-list of GENERIC-FUNCTION.
 
-    This is called done for each required argument."))
+    This is called once for each pair of required argument OBJECT and
+    its position in the lambda-list ARG-POSITION."))
 
 (defgeneric compute-applicable-methods-using-generalizers (generic-function generalizers)
   (:documentation
