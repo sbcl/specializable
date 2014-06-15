@@ -4,7 +4,7 @@
 ;;;;
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
 
-(cl:in-package "SPECIALIZABLE-TEST")
+(cl:in-package #:specializable-test)
 
 (in-suite :specializable)
 
@@ -25,7 +25,7 @@
           (defmethod ,name list ((a real)    (b integer))
             '(real integer))
           (defmethod ,name list ((a real)    (b real))
-                     '(real real))
+            '(real real))
           (reinitialize-instance
            #',name :disabled-optimizations '(:standard-discrimination)))))
   (define-a-p-o-generic-function argument-precedence-order.1 a b)
