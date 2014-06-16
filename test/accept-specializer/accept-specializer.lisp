@@ -153,5 +153,5 @@
    '(("audio/mp3"            t mp3)
      ("audio/mp3;q=1.0"      nil nil)
      ("image/webp"           t webp)
-     ("audio/mp3;image/webp" nil webp)
-     ("audio/mp3;image/webp" t mp3))))
+     ("audio/mp3,image/webp" nil webp)
+     ("audio/mp3,image/webp" t mp3))))
