@@ -70,18 +70,24 @@
     (:generic-function-class accept-generic-function)
     (:method-combination content-negotiation)))
 
+(defmethod cn-test ((request string))
+  (when (string= request "image/webp")
+    :string))
 (defmethod cn-test ((request (accept "text/html")))
-  'html)
+  :html)
 (defmethod cn-test ((request (accept "text/plain")))
-  'plain)
+  :plain)
+(defmethod cn-test :around ((request (accept "text/plain")))
+  (list :around-plain (call-next-method)))
 (defmethod cn-test ((request (accept "image/webp")))
-  'webp)
+  (call-next-method))
 (defmethod cn-test ((request (accept "audio/mp3")))
-  ;; TODO test CALL-NEXT-METHOD
-  #+TODO (call-next-method)
-  'mp3)
-(defmethod cn-test :after (request)
-  (print 'after))
+  :mp3)
+(defvar *cn-test-after*)
+(defmethod cn-test :after ((request float))
+  (push :after-float *cn-test-after*))
+(defmethod cn-test :after ((request (accept "text/html")))
+  (push :after-html *cn-test-after*))
 
 (test content-negotiation
 
@@ -89,40 +95,54 @@
    (lambda (spec)
      (destructuring-bind (input expected) spec
        (flet ((call ()
-                (funcall #'cn-test input)))
-        (case expected
-          (sb-pcl::long-method-combination-error
-           (signals sb-pcl::long-method-combination-error (call)))
-          (t
-           (is (equal expected (call))))))))
+                (let ((*cn-test-after* '()))
+                  (list (funcall #'cn-test input) *cn-test-after*))))
+         (case expected
+           (simple-error #+later sb-pcl::no-applicable-method-error
+             (signals simple-error #+later sb-pcl::no-applicable-method-error (call)))
+           (sb-pcl::long-method-combination-error
+            (signals sb-pcl::long-method-combination-error (call)))
+           (t
+            (let ((result (call)))
+              (is (equal expected result)
+                  "~@<Calling ~S with argument ~S returned ~S and ~
+                   pushed onto ~S the values ~:S (expected return ~
+                   value: ~S; expected value of ~S: ~:S)~@:>"
+                  'cn-text input
+                  (first result) '*cn-test-after* (second result)
+                  (first expected) '*cn-test-after* (second expected))))))))
 
    '(;; Not known content types
-     (:foo                              sb-pcl::long-method-combination-error)
-     (1                                 sb-pcl::long-method-combination-error)
-     ("bar"                             sb-pcl::long-method-combination-error)
+     (:foo                              simple-error #+later sb-pcl::no-applicable-method-error)
+     (1                                 simple-error #+later sb-pcl::no-applicable-method-error)
+     (1.0f0                             sb-pcl::long-method-combination-error) ; no primary method
+
+     ;; STRING specializer
+     ("bar"                             (nil                    ()))
+     ("image/webp"                      (:string                ())) ; via CALL-NEXT-METHOD
 
      ;; One content type, with and without q
-     ("*/*"                             mp3)  ; because "audio/mp3" STRING< everything else
-     ("*/*;q=1.0"                       mp3)  ; likewise
-     ("text/*"                          html) ; because (string< "text/html" "text/plain")
-     ("text/*;q=0.15"                   html) ; likewise
-     ("text/plain"                      plain)
-     ("text/plain;q=0.1"                plain)
-     ("audio/*"                         mp3)
-     ("audio/*;q=0.01"                  mp3)
-     ("audio/mp3"                       mp3)
-     ("audio/mp3;q=0.1"                 mp3)
+     ("*/*"                             ((:around-plain :mp3)   (:after-html))) ; because "audio/mp3" STRING< everything else
+     ("*/*;q=1.0"                       ((:around-plain :mp3)   (:after-html))) ; likewise
+     ("text/*"                          ((:around-plain :html)  (:after-html))) ; because (string< "text/html" "text/plain")
+     ("text/*;q=0.15"                   ((:around-plain :html)  (:after-html))) ; likewise
+     ("text/plain"                      ((:around-plain :plain) ()))
+     ("text/plain;q=0.1"                ((:around-plain :plain) ()))
+     ("audio/*"                         (:mp3                   ()))
+     ("audio/*;q=0.01"                  (:mp3                   ()))
+     ("audio/mp3"                       (:mp3                   ()))
+     ("audio/mp3;q=0.1"                 (:mp3                   ()))
 
      ;; Multiple content types, with and without q
-     ("text/html,audio/mp3"             html) ; because "text/html" earlier in accept string
-     ("text/html;q=0.1,audio/mp3"       mp3)
-     ("text/html,audio/mp3;q=0.2"       html)
-     ("text/html;q=0.1,audio/mp3;q=0.2" mp3)
-     ("audio/mp3;q=0.2,text/html;q=0.1" mp3)
-     ("text/html;q=0.2,audio/mp3;q=0.1" html)
-     ("audio/mp3;q=0.1,text/html;q=0.2" html)
-     ("audio/*;q=0.1,text/html;q=0.2"   html)
-     ("audio/*;q=0.2,text/html;q=0.1"   mp3))))
+     ("text/html,audio/mp3"             (:html                  (:after-html))) ; because "text/html" earlier in accept string
+     ("text/html;q=0.1,audio/mp3"       (:mp3                   (:after-html)))
+     ("text/html,audio/mp3;q=0.2"       (:html                  (:after-html)))
+     ("text/html;q=0.1,audio/mp3;q=0.2" (:mp3                   (:after-html)))
+     ("audio/mp3;q=0.2,text/html;q=0.1" (:mp3                   (:after-html)))
+     ("text/html;q=0.2,audio/mp3;q=0.1" (:html                  (:after-html)))
+     ("audio/mp3;q=0.1,text/html;q=0.2" (:html                  (:after-html)))
+     ("audio/*;q=0.1,text/html;q=0.2"   (:html                  (:after-html)))
+     ("audio/*;q=0.2,text/html;q=0.1"   (:mp3                   (:after-html))))))
 
 ;;; Content negotiation with or combination test
 
