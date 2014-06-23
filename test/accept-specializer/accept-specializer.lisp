@@ -114,7 +114,7 @@
      ("audio/mp3;q=0.1"                 mp3)
 
      ;; Multiple content types, with and without q
-     ("text/html,audio/mp3"             html) ; because "text/html" earlier in accpet string
+     ("text/html,audio/mp3"             html) ; because "text/html" earlier in accept string
      ("text/html;q=0.1,audio/mp3"       mp3)
      ("text/html,audio/mp3;q=0.2"       html)
      ("text/html;q=0.1,audio/mp3;q=0.2" mp3)
@@ -139,8 +139,7 @@
 (defmethod cn/or-test or ((request (accept "image/webp")))
   'webp)
 (defmethod cn/or-test :around ((request t))
-  (print :around)
-  (call-next-method))
+  (list :around (call-next-method)))
 
 (test content-negotiation/or
 
@@ -150,8 +149,8 @@
        (let ((*mp3-emittable-p* mp3))
          (is (equal expected (cn/or-test input))))))
 
-   '(("audio/mp3"            t mp3)
-     ("audio/mp3;q=1.0"      nil nil)
-     ("image/webp"           t webp)
-     ("audio/mp3,image/webp" nil webp)
-     ("audio/mp3,image/webp" t mp3))))
+   '(("audio/mp3"            t   (:around mp3))
+     ("audio/mp3;q=1.0"      nil (:around nil))
+     ("image/webp"           t   (:around webp))
+     ("audio/mp3,image/webp" nil (:around webp))
+     ("audio/mp3,image/webp" t   (:around mp3)))))
