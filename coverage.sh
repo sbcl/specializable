@@ -9,7 +9,8 @@
 SBCL="${HOME}/opt/sbcl/bin/sbcl"
 QUICKLISP="${HOME}/.local/share/common-lisp/quicklisp"
 
-"${SBCL}" --noinform --no-userinit              \
-          --load "${QUICKLISP}/setup.lisp"      \
-          --load "coverage.lisp"                \
+"${SBCL}" --noinform --disable-ldb --lose-on-corruption         \
+          --disable-debugger --no-userinit                      \
+          --load "${QUICKLISP}/setup.lisp"                      \
+          --load "coverage.lisp"                                \
           --quit
