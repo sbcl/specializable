@@ -17,7 +17,7 @@
 
   #+BEGIN_SRC lisp
     (defmethod my-method ((parameter (SPECIALIZER-KIND &rest SPECIALIZER-SYNTAX)))
-    …)
+      …)
   #+END_SRC
 
   where =SPECIALIZER-KIND= is a symbol designating the new specializer
@@ -40,9 +40,9 @@
   Based on this extension, the following kinds =specializer= s are
   also provided:
   + =cons-specializer= for dispatch based on the contents of the =car=
-    slot of =cons= objects
+    slot of =cons= objects. See [[file:examples/cons-specializer.lisp]].
   + =accept-specializer= for dispatch based on HTTP content
-    negotiation
+    negotiation. See [[file:examples/accept-specializer.lisp]].
 
 * Footnotes
 
