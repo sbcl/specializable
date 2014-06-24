@@ -23,6 +23,28 @@
 (defmethod pattern-subpatterns ((pattern complex-pattern))
   (complex-pattern-subpatterns pattern))
 
+;;; Pattern keys protocol
+
+(defgeneric pattern-keys (pattern)
+  (:documentation
+   "Return a list of objects uniquely encoding the structural
+    positions of variables in PATTERN.
+
+    For example, the keys of a `cons-pattern' are '(0 1), the keys of
+    a `class-pattern' are the (ordered) slot names."))
+
+;; Default behavior
+
+(defmethod pattern-keys ((pattern optima::pattern))
+  '())
+
+(defmethod pattern-keys ((pattern complex-pattern))
+  (iota (length (pattern-subpatterns pattern))))
+
+(defmethod pattern-keys ((pattern class-pattern))
+  (values (class-pattern-slot-names pattern)
+          (class-pattern-class-name pattern)))
+
 ;;; Pattern type specifier protocol
 
 (defgeneric pattern-type-specifier (pattern)

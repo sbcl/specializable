@@ -32,6 +32,10 @@
   (:export
    #:pattern-subpatterns)
 
+  ;; Pattern keys protocol
+  (:export
+   #:pattern-keys)
+
   ;; Pattern type specifier protocol
   (:export
    #:pattern-type-specifier)
@@ -48,11 +52,22 @@
    ;; map-patterns-and-paths family of functions
    #:map-patterns-and-paths
    #:mapc-patterns-and-paths
-   #:map-patterns-and-paths/reconstitute)
+   #:map-patterns-and-paths/reconstitute
+
+   ;; map-variables-and-paths family of functions
+   #:map-variables-and-paths
+   #:mapc-variables-and-paths)
 
   ;; Specialized pattern transformations
   (:export
-   )
+   #:pattern-variables-and-paths
+
+   #:pattern-anonymize-variables)
+
+  ;; Predicate making protocol
+  (:export
+   #:make-predicate-form
+   #:make-predicate)
 
   (:documentation
    "This package contains extensions to the optima system that are

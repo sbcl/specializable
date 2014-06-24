@@ -17,7 +17,16 @@
    #:guard)
 
   (:import-from #:optima.core
-   #:parse-pattern #:unparse-pattern)
+   #:parse-pattern #:unparse-pattern
+
+   #:constant-pattern
+   #:variable-pattern #:make-variable-pattern #:variable-pattern-name
+   #:cons-pattern     #:make-cons-pattern
+   #:class-pattern
+   #:guard-pattern
+   #:not-pattern      #:make-not-pattern
+   #:and-pattern      #:make-and-pattern
+   #:or-pattern)
 
   (:export
    #:run-tests))
@@ -50,3 +59,27 @@
            (is (equal expected result)
                "~@<(~S ~{~S~^ ~}) => ~S [expected ~S]~@:>"
                predicate patterns result expected)))))))
+
+(defun make-pattern-transform-test-case-thunk (transform &rest transform-args)
+  (lambda (spec)
+    (destructuring-bind (pattern &rest more-transform-args) (butlast spec)
+      (let ((expected (lastcar spec)))
+        (call-as-pattern-test-case
+         (list pattern) (append more-transform-args (list expected))
+         (lambda (patterns expected)
+           (let* ((pattern   (first patterns))
+                  (all-args  (append transform-args more-transform-args))
+                  (result    (apply transform
+                                    (append all-args (list pattern))))
+                  (result*   (case expected
+                               (:unchanged result)
+                               (t          (unparse-pattern result))))
+                  (expected* (case expected
+                               (:unchanged
+                                pattern)
+                               (t
+                                (unparse-pattern (parse-pattern expected))))))
+             (is (equal expected* result*)
+                 "~@<(~S~@[ ~{~S~^ ~}~] ~S) => ~S [expected ~S]~@:>"
+                 transform all-args pattern
+                 result* expected*))))))))
