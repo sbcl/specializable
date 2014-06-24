@@ -9,17 +9,40 @@
   System) and its meta-object protocol with a form of generalized
   dispatch by introducing a new =generalizer= meta-object.
 
-  *This system only works in the [[www.sbcl.org][SBCL]] Common Lisp implementation.*
+  *This system only works in the [[http://www.sbcl.org][SBCL]] Common Lisp implementation.*
 
-  Based on the above extension, the following extended =specializer= s
-  are also provided:
+  The specializable system allows meta-programmers to implement new
+  kinds of specializers which can then be used by programmers like
+  this:
+
+  #+BEGIN_SRC lisp
+    (defmethod my-method ((parameter (SPECIALIZER-KIND &rest SPECIALIZER-SYNTAX)))
+    …)
+  #+END_SRC
+
+  where =SPECIALIZER-KIND= is a symbol designating the new specializer
+  kind and =SPECIALIZER-SYNTAX= is a form which adheres to the
+  respective syntax and parametrizes the specializer.
+
+  More concretely, assuming a new specializer kind designated by
+  =cl:cons=, the above example would become:
+
+  #+BEGIN_SRC lisp
+    (defmethod my-method ((parameter (cons foo)))
+      …)
+  #+END_SRC
+
+  A detailed description can be found in the associated
+  publications [fn:1][fn:2].
+
+* STARTED Provided Specializers
+
+  Based on this extension, the following kinds =specializer= s are
+  also provided:
   + =cons-specializer= for dispatch based on the contents of the =car=
     slot of =cons= objects
   + =accept-specializer= for dispatch based on HTTP content
     negotiation
-
-  A detailed description can be found in the associated
-  publications [fn:1][fn:2].
 
 * Footnotes
 
