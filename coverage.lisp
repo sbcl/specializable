@@ -38,4 +38,5 @@
         '(:specializable
           :language-extension.cons-specializer
           :language-extension.accept-specializer
-          :language-extension.prototype-specializer))
+          :language-extension.prototype-specializer
+          :language-extension.pattern-specializer))

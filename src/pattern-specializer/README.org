@@ -1,0 +1,68 @@
+#+TITLE:       README
+#+AUTHOR:      Jan Moringen \and Christophe Rhodes
+#+DESCRIPTION: Optima pattern as CLOS specializers - SBCL only
+#+KEYWORDS:    common lisp, clos, specializer, optima, pattern
+#+LANGUAGE:    en
+
+* STARTED Introduction
+
+  *This system only works in the [[http://www.sbcl.org][SBCL]] Common Lisp implementation.*
+
+* TODO Syntax
+  Pattern specializers use the designator pattern-specializer:pattern
+  in combination with [[https://github.com/m2ym/optima][Optima]]'s syntax for patterns, i.e.
+
+  #+BEGIN_SRC lisp
+    (defmethod my-method ((parameter (pattern-specializer:pattern PATTERN)))
+      …)
+  #+END_SRC
+
+  where =PATTERN= is a form in Optima pattern syntax (see
+  [[*Limitations]]). More concrete example:
+
+  #+BEGIN_SRC lisp
+    ;; This method is applicable to every CONS whose CAR is 1 and whose
+    ;; CDR is an integer.
+    (defmethod my-method ((parameter (pattern-specializer:pattern (cons 1 (type integer)))))
+      …)
+  #+END_SRC
+
+** TODO Pattern Variables
+   When patterns used in pattern specializers contain variables,
+   corresponding bindings are established in the associated bodies of
+   the respective methods:
+
+   #+BEGIN_SRC lisp
+     (defmethod my-method ((parameter (pattern-specializer:pattern (cons the-car the-cdr))))
+       (format nil "The CONS ~S with CAR ~S and CDR ~S~%"
+               parameter the-car the-cdr))
+   #+END_SRC
+
+   Note that pattern variables occurring in different specializers
+   must have distinct names. For example
+
+   #+BEGIN_SRC lisp
+     (defmethod my-method ((a (pattern (cons x y))) (b (pattern (cons  x z))))
+       …)
+   #+END_SRC
+
+   does not work because the variable =x= would have to be bound to
+   two different values (one from each pattern specializer) in the
+   method body.
+** TODO Limitations
+   Unfortunately, not all Optima patterns are currently supported. In
+   particular:
+
+   + =place= patterns are not supported
+   + =structure= patterns are not supported (but =class= patterns are)
+   + Ordering of =guard= patterns is only possible in a few cases
+     + =guard= patterns of the form =(type TYPE)=
+       + This, of course, excludes =cl:satisfies= types
+     + =guard= patterns of the form =(guard VAR (consp VAR))=
+* TODO Method Applicability and Ordering
+* TODO Interoperation with =class= and =eql= Specializers
+
+* Settings                                                         :noexport:
+
+#+OPTIONS: H:2 num:nil toc:nil \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
+#+OPTIONS: TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:not-in-toc

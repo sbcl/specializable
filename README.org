@@ -45,6 +45,8 @@
     negotiation. See [[file:examples/accept-specializer.lisp]].
   + =prototype-specializer= for dispatch on prototype objects. See
     [[file:examples/prototype-specializer.lisp]]
+  + =pattern-specializer= for dispatch based on [[https://github.com/m2ym/optima][Optima]] patterns. See
+    [[file:src/pattern-specializer/README.org]].
 
 * Footnotes
 
