@@ -8,6 +8,25 @@
 
 ;;; Utilities
 
+(defun compare-types (type1 type2)
+  (multiple-value-bind (result1 definitive1p)
+      (subtypep type1 type2)
+    (multiple-value-bind (result2 definitive2p)
+        (subtypep type2 type1)
+      (multiple-value-bind (result-and definitive-and-p)
+          (subtypep `(and ,type1 ,type2) nil)
+        (cond
+          ((and result-and definitive-and-p)
+           '//)
+          ((and result1 definitive1p result2 definitive2p)
+           '=)
+          ((and result1 definitive1p)
+           '<)
+          ((and result2 definitive2p)
+           '>)
+          (t
+           '/=))))))
+
 ;; The following two functions are use by
 ;; `guard-pattern-maybe-{type,predicate}'. Optima's syntax for
 ;; structure patterns requires specification of the "nonc" name

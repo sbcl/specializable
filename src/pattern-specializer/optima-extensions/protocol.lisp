@@ -155,3 +155,27 @@
    (lambda (pattern)
      (pattern-normalize/traverse function pattern))
    pattern))
+
+;;; Ordering protocol
+
+(defgeneric pattern-more-specific-p (pattern1 pattern2)
+  (:documentation
+   "Compare the specificity of PATTERN1 and PATTERN2 and return any of
+    the following symbols in the `common-lisp' package:
+
+    =  if PATTERN1 and PATTERN2 are equally specific
+
+    <  if PATTERN1 is more specific than PATTERN2
+
+    >  if PATTERN1 is less specific than PATTERN2
+
+    // if the set of values accepted by PATTERN1 is disjoint from the
+       set of objects accepted by PATTERN2
+
+    /= if there is no relation w.r.t. specificity between
+       PATTERN1 and PATTERN2"))
+
+(defgeneric pattern-more-specific-1-p (pattern1 pattern2)
+  (:argument-precedence-order pattern2 pattern1)
+  (:documentation
+   "TODO explain"))

@@ -14,7 +14,8 @@
    #:pattern-specializer.optima-extensions)
 
   (:import-from #:optima
-   #:guard)
+   #:guard
+   #:match)
 
   (:import-from #:optima.core
    #:parse-pattern #:unparse-pattern

@@ -77,6 +77,10 @@
 
    #:pattern-normalize-1)
 
+  ;; Ordering protocol
+  (:export
+   #:pattern-more-specific-p)
+
   (:documentation
    "This package contains extensions to the optima system that are
     required by the pattern-specializer system."))

@@ -21,7 +21,8 @@
                               (:file       "protocol")
                               (:file       "type-interoperation")
                               (:file       "transform")
-                              (:file       "normalize")))
+                              (:file       "normalize")
+                              (:file       "order")))
 
                 (:module     "pattern-specializer"
                  :pathname   "src/pattern-specializer"
@@ -51,7 +52,8 @@
                               (:file       "util")
                               (:file       "type-interoperation")
                               (:file       "transform")
-                              (:file       "normalize")))))
+                              (:file       "normalize")
+                              (:file       "order")))))
 
 (defmethod perform ((operation test-op)
                     (component (eql (find-system :language-extension.pattern-specializer-test))))
