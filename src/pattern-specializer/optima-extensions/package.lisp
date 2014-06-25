@@ -71,6 +71,12 @@
    #:make-predicate-form
    #:make-predicate)
 
+  ;; Normalization protocol
+  (:export
+   #:pattern-normalize
+
+   #:pattern-normalize-1)
+
   (:documentation
    "This package contains extensions to the optima system that are
     required by the pattern-specializer system."))

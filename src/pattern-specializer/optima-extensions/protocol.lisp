@@ -57,3 +57,101 @@
 
     * (class clazz (a 1)) => clazz
     * (guard x (< x 5))   => t"))
+
+;;; Normalization protocol
+
+
+(defgeneric pattern-normalize (form pattern)
+  (:documentation
+   "Normalize PATTERN into normal form FORM and return the normalized
+    pattern.
+
+    Examples of FORM are
+
+    :literal
+      TODO
+
+    :cnf
+      TODO
+
+    :cnf/strict"))
+
+(defgeneric pattern-normalize-1 (form pattern)
+  (:documentation
+   "Perform one step towards normalizing PATTERN into normal form FORM
+    and return the resulting pattern.
+
+    Return nil if no such step can be made. This function is intended
+    for use in iterative normalization schemes."))
+
+;; Default implementation
+
+(defmethod pattern-normalize ((form    t)
+                              (pattern t))
+  ;; The default behavior consists in normalizing iterative and
+  ;; traversing PATTERN.
+  (pattern-normalize/iterate+traverse
+   (curry #'pattern-normalize-1 form) pattern))
+
+(defmethod pattern-normalize ((form    list)
+                              (pattern t))
+  ;; Subsequent normalize to the forms in the list FORM.
+  (reduce (lambda (result form)
+            (pattern-normalize form result))
+          form :initial-value pattern))
+
+(defmethod pattern-normalize-1 ((form    t)
+                                (pattern t))
+  nil)
+
+(defun pattern-normalize/iterate (function pattern)
+  "Iteratively normalize PATTERN by repeatedly calling FUNCTION on
+   intermediate normalization results.
+
+   Return two values: 1. the normalized pattern derived from PATTERN
+   2. a Boolean indicating whether the first return value is different
+   from PATTERN.
+
+   When called with a pattern, FUNCTION has to return either a
+   modified pattern based on the argument or nil to indicate that the
+   argument should not be transformed further."
+  (let ((function (coerce function 'function)))
+    (do ((any-change-p nil)
+         (changep      t)
+         (pattern      pattern))
+        ((not changep) (values pattern any-change-p))
+      (setf changep nil
+            pattern (multiple-value-bind (result change1p)
+                        (funcall function pattern)
+                      (when change1p
+                        (setf any-change-p t
+                              changep      t))
+                      result)))))
+
+(defun pattern-normalize/traverse (function pattern)
+  "Call FUNCTION on PATTERN and its subpatterns.
+
+   Return two values: 1. a pattern tree consisting of the return
+   values of individual calls of FUNCTION 2. a Boolean indicating
+   whether the first return value is different from PATTERN."
+  (let ((function (coerce function 'function))
+        (changep nil))
+    (values
+     (map-pattern/reconstitute
+      (lambda (pattern recurse reconstitute)
+        (declare (ignore recurse reconstitute))
+        (when-let ((result (funcall function pattern)))
+          (setf changep t)
+          result))
+      pattern)
+     changep)))
+
+(defun pattern-normalize/iterate+traverse (function pattern)
+  "Use `pattern-normalize/iterate' and `pattern-normalize/traverse' to
+   repeatedly apply FUNCTION recursively to PATTERN.
+
+   Return values like `pattern-normalize/iterate'."
+  (pattern-normalize/iterate
+   (lambda (pattern)
+     (pattern-normalize/traverse function pattern))
+   pattern))

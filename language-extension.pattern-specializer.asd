@@ -20,7 +20,8 @@
                  :components ((:file       "package")
                               (:file       "protocol")
                               (:file       "type-interoperation")
-                              (:file       "transform")))
+                              (:file       "transform")
+                              (:file       "normalize")))
 
                 (:module     "pattern-specializer"
                  :pathname   "src/pattern-specializer"
@@ -47,8 +48,10 @@
                  :depends-on ("pattern-specializer")
                  :serial     t
                  :components ((:file       "package")
+                              (:file       "util")
                               (:file       "type-interoperation")
-                              (:file       "transform")))))
+                              (:file       "transform")
+                              (:file       "normalize")))))
 
 (defmethod perform ((operation test-op)
                     (component (eql (find-system :language-extension.pattern-specializer-test))))
