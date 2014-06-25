@@ -34,7 +34,11 @@
                  :pathname   "src/pattern-specializer"
                  :depends-on ("optima-extensions" "logic")
                  :serial     t
-                 :components ((:file       "package"))))
+                 :components ((:file       "package")
+                              (:file       "conditions")
+                              (:file       "protocol")
+                              (:file       "discrimination")
+                              (:file       "pattern-specializer"))))
 
   :in-order-to ((test-op (test-op :language-extension.pattern-specializer-test))))
 
@@ -44,11 +48,14 @@
   :description "Tests for the language-extension.pattern-specializer system."
   :depends-on  (:fiveam
 
-                :language-extension.pattern-specializer)
+                :language-extension.pattern-specializer
+
+                :specializable-test)
   :components  ((:module     "pattern-specializer"
                  :pathname   "test/pattern-specializer"
                  :serial     t
-                 :components ((:file       "package")))
+                 :components ((:file       "package")
+                              (:file       "pattern-specializer")))
 
                 (:module     "optima-extensions"
                  :pathname   "test/pattern-specializer/optima-extensions"

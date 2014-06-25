@@ -11,7 +11,9 @@
 
    #:fiveam
 
-   #:pattern-specializer)
+   #:pattern-specializer
+
+   #:specializable-test)
 
   (:import-from #:optima
    #:guard)

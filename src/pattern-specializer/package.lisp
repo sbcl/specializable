@@ -35,7 +35,42 @@
    #:unparse-specializer-using-class
    #:make-specializer-form-using-class
 
+   #:specializer-type-specifier
+
    #:make-method-lambda-using-specializers)
+
+  (:import-from #:optima
+   #:match #:ematch)
+
+  (:import-from #:optima.core
+   #:parse-pattern #:unparse-pattern
+
+   #:constant-pattern                         #:constant-pattern-value
+   #:variable-pattern #:make-variable-pattern #:variable-pattern-name
+   #:guard-pattern
+   #:and-pattern      #:make-and-pattern)
+
+  ;; Specifier symbol for the pattern specializer
+  (:export
+   #:pattern)
+
+  ;; Conditions
+  (:export
+   #:pattern-variable-name-error
+   #:pattern-variable-name-error-specializer
+   #:pattern-variable-name-error-name)
+
+  ;; Pattern specializer class
+  (:export
+   #:pattern-specializer
+   #:specializer-pattern ; TODO keep both? renamed to pattern-specializer-[parsed-]pattern?
+   #:specializer-parsed-pattern)
+
+  ;; Generic function and method
+  (:export
+   #:pattern-generic-function
+
+   #:pattern-method)
 
   (:documentation
    "This package contains the implementation of pattern specializers
