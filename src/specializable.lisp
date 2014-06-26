@@ -344,9 +344,9 @@
        :do (let ((specializer1 (nth index specializers1))
                  (specializer2 (nth index specializers2)))
              (ecase (specializer< gf specializer1 specializer2 generalizer)
-               (<      (return t))
+               (<         (return t))
                (=)
-               ((> /=) (return nil)))))))
+               ((> /= //) (return nil)))))))
 
 (defmethod specializer<
     ((gf specializable-generic-function) (s1 class) (s2 class) (generalizer class))
@@ -367,7 +367,7 @@
   (declare (ignore generalizer))
   (if (eq (sb-mop:eql-specializer-object s1) (sb-mop:eql-specializer-object s2))
       '=
-      '/=))
+      '//))
 (defmethod specializer< ((gf specializable-generic-function) (s1 sb-mop:eql-specializer) (s2 class) generalizer)
   (declare (ignore generalizer))
   '<)

@@ -50,7 +50,7 @@
   (declare (ignore generalizer))
   (if (eql (%car s1) (%car s2))
       '=
-      '/=))
+      '//))
 (defmethod specializer< ((gf cons-generic-function) (s1 cons-specializer) (s2 class) generalizer)
   (declare (ignore generalizer))
   '<)
@@ -58,9 +58,7 @@
   (declare (ignore generalizer))
   '>)
 (defmethod specializer< ((gf cons-generic-function) (s1 sb-mop:specializer) (s2 cons-specializer) generalizer)
-  (ecase (specializer< gf s2 s1 generalizer)
-    ((<) '>)
-    ((>) '<)))
+  (invert-specializer<-relation (specializer< gf s2 s1 generalizer)))
 ;;; note: the need for this method is tricky: we need to translate
 ;;; from generalizers that our specializers "know" about to those that
 ;;; ordinary generic functions and specializers might know about.

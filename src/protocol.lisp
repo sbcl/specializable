@@ -179,7 +179,8 @@
 (defgeneric specializer< (generic-function specializer1 specializer2 generalizer)
   (:documentation
    "Compare the specificity of SPECIALIZER1 and SPECIALIZER2
-    w.r.t. GENERALIZER and return
+    w.r.t. GENERALIZER and return any of the following symbols in the
+    `common-lisp' package:
 
     =  if SPECIALIZER1 and SPECIALIZER2 are equally specific
        w.r.t. GENERALIZER (TODO does that imply SAME-SPECIALIZER-P)?
@@ -189,6 +190,9 @@
 
     >  if SPECIALIZER1 is less specific than SPECIALIZER2
        w.r.t. GENERALIZER
+
+    // if the set of objects accepted by SPECIALIZER1 is disjoint from
+       the set of objects accepted by SPECIALIZER2.
 
     /= if there is no relation between the respective specificity of
        SPECIALIZER1 and SPECIALIZER2 w.r.t. GENERALIZER
