@@ -167,7 +167,11 @@
                  (reconstitute))))
    pattern))
 
-;;; Specialized pattern transformations
+;;; Specialized pattern predicates and transformations
+
+(defun pattern-subpatterns-unrestricted-p (pattern)
+  ;; TODO check for "at least top-pattern" instead
+  (every (of-type 'variable-pattern) (pattern-subpatterns pattern)))
 
 (defun mapc-variables-and-paths (function pattern
                                  &key

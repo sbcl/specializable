@@ -58,8 +58,10 @@
    #:map-variables-and-paths
    #:mapc-variables-and-paths)
 
-  ;; Specialized pattern transformations
+  ;; Specialized pattern predicates and transformations
   (:export
+   #:pattern-subpatterns-unrestricted-p
+
    #:pattern-variables-and-paths
 
    #:pattern-anonymize-variables)
