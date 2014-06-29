@@ -174,8 +174,11 @@
                 :for arg :in args
                 :for cell :of-type cons :on into
                 :do (setf (car cell)
-                          ;; TODO truly-the function; bounds checks
-                          (funcall (svref generalizer-makers i) arg))))
+                          (funcall (sb-ext:truly-the
+                                    function
+                                    (locally (declare (optimize (sb-c::insert-array-bounds-checks 0)))
+                                      (svref (sb-ext:truly-the simple-array generalizer-makers) i)))
+                                   arg))))
            (compute-hash-key (generalizer)
              (generalizer-equal-hash-key gf generalizer))
            (effective-arguments (generalizers args)
