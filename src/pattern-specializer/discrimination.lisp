@@ -201,16 +201,18 @@
 ;;
 ;; The forms next-a-g-f-related forms are only generated if
 ;; ACCEPT-NEXT-A-G-F-P is true.
-(defun make-generalizer-maker-form (components paths accept-next-a-g-f-p)
+(defun make-generalizer-maker-form (components binding-slot-infos accept-next-a-g-f-p)
   (with-unique-names (arg next-a-g-f bindings)
     (labels ((make-binding-vector (variables) ; TODO separate function?
                (when (emptyp variables)
                  (return-from make-binding-vector
                    `(load-time-value (vector) t)))
 
-               (let ((forms  (make-list (length paths))))
+               (let ((forms (make-list (length binding-slot-infos))))
                  (loop :for (name position) :in variables :do
-                    (let ((position (position position paths :key #'path-info-path)))
+                    (let ((position (position position binding-slot-infos
+                                              :test (lambda (x y)
+                                                      (binding-slot-info-find-path y x)))))
                       (setf (elt forms position)
                             (ematch name
                               ((cons :constant value)   value)
@@ -225,10 +227,12 @@
                                      (specializer-component-specializers component)
                                      :start (list most-specific-specializer)
                                      :down nil))
-                      (used-paths   (remove-if-not (lambda (path)
-                                                     (some (rcurry #'member (path-info-specializers path))
-                                                           specializers))
-                                                   paths))
+                      (used-paths   (remove nil ; TODO ugly
+                                            (map 'list (lambda (info)
+                                                         (when (some (curry #'binding-slot-info-find-specializer info)
+                                                                     specializers)
+                                                           (first (binding-slot-info-paths info))))
+                                                 binding-slot-infos)))
                       (key          (mapcar #'specializer-pattern specializers))) ; TODO better key; can't we just use gensym here?
                  (multiple-value-bind (pattern variables)
                      (augment-pattern-for-discriminating-function
@@ -257,12 +261,11 @@
            (otherwise
             nil))))))
 
-(defun make-generalizer-maker (generic-function parameter) ; TODO just parameter
+(defun make-generalizer-maker (parameter)
   (declare (type required-parameter-info parameter))
-  (let* ((paths (map 'list #'second
-                    (generic-function-binding-slots generic-function))) ; TODO put into parameter-info
+  (let* ((binding-slot-infos   (required-parameter-info-binding-slots parameter))
          (components (required-parameter-info-components parameter))
          ;; a-g-f = argument-generalizing-function
-        (accept-next-a-g-f-p (when (required-parameter-info-other-specializers parameter) t))
-        (form (make-generalizer-maker-form components paths accept-next-a-g-f-p)))
+         (accept-next-a-g-f-p (when (required-parameter-info-other-specializers parameter) t))
+         (form (make-generalizer-maker-form components binding-slot-infos accept-next-a-g-f-p)))
     (values (compile nil form) accept-next-a-g-f-p))) ; TODO handle failed compilation?

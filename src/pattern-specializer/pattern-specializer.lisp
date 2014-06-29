@@ -416,8 +416,8 @@
                            (path-info (find path paths
                                             :test #'equal
                                             :key  #'path-info-path)) ; TODO encapsulate this somewhere?
-                           (slot      (pattern-generic-function-ensure-binding-slot
-                                       generic-function path-info)))
+                           (slot      (required-parameter-info-ensure-binding-slot
+                                       parameter-info path-info)))
                       (push `(,name (locally
                                         (declare (optimize (sb-c::insert-array-bounds-checks 0)))
                                       (svref (sb-ext:truly-the (simple-array t (*)) ,bindings-var) ,slot)))
@@ -457,18 +457,45 @@
 
 ;;; pattern-generic-function
 
+(defstruct (binding-slot-info (:copier nil))
+  (paths '() :type list #|of path-info|#))
+
+(defmethod print-object ((object binding-slot-info) stream)
+  (print-unreadable-object (object stream :type t :identity t)
+    (format stream "(~D)" (length (binding-slot-info-paths object)))))
+
+(defun binding-slot-info-unused-p (info)
+  (every (compose #'emptyp #'path-info-specializers)
+         (binding-slot-info-paths info)))
+
+(defun binding-slot-info-find-path (info path)
+  (let ((path (etypecase path
+                (path-info (path-info-path path))
+                (list      path)))) ; TODO is list correct?
+    (find path (binding-slot-info-paths info)
+          :test #'equal :key #'path-info-path)))
+
+(defun binding-slot-info-find-specializer (info specializer)
+  (find-if (lambda (path-info)
+             (member specializer (path-info-specializers path-info)))
+           (binding-slot-info-paths info)))
+
 ;; TODO document
 (defstruct (required-parameter-info (:copier nil))
   (pattern-specializers '() :type list #|of pattern-specializer|#)
   (other-specializers   '() :type list #|of sb-pcl:specializer|#)
-  (components           '() :type list #|of specializer-component|#))
+  (components           '() :type list #|of specializer-component|#)
+  (binding-slots        (make-array 0 :adjustable t :fill-pointer 0) :type (vector binding-slot-info)))
 
 (defmethod print-object ((object required-parameter-info) stream)
   (print-unreadable-object (object stream :type t :identity t)
-    (format stream "(~D[~D]/~D)"
+    (format stream "~S ~D[~D]/~D ~S ~D"
+            :specializers
             (length (required-parameter-info-pattern-specializers object))
             (length (required-parameter-info-components object))
-            (length (required-parameter-info-other-specializers object)))))
+            (length (required-parameter-info-other-specializers object))
+            :slots
+            (length (required-parameter-info-binding-slots object)))))
 
 (defun required-parameter-info-components-for (info specializer)
   (declare (type pattern-specializer specializer))
@@ -531,13 +558,21 @@
      (removef (required-parameter-info-other-specializers info)
               specializer))))
 
+(defun required-parameter-info-ensure-binding-slot (info path-info)
+  (declare (type path-info path-info))
+  (let* ((slots (required-parameter-info-binding-slots info))
+         (slot  (or (find-if (rcurry #'binding-slot-info-find-path path-info) slots)
+                    (find-if #'binding-slot-info-unused-p slots)
+                    (let ((slot (make-binding-slot-info )))
+                      (vector-push-extend slot slots)
+                      slot))))
+    (pushnew path-info (binding-slot-info-paths slot))
+    (position slot slots)))
+
 ;; TODO document
 (defclass pattern-generic-function (specializable:specializable-generic-function)
-  ((required-parameter-infos :type     list #|of required-parameter-info|#
-                             :reader   generic-function-required-parameter-infos)
-   (binding-slots            :type     vector
-                             :reader   generic-function-binding-slots
-                             :initform (make-array 0 :adjustable t :fill-pointer 0)))
+  ((required-parameter-infos :type   list #|of required-parameter-info|#
+                             :reader generic-function-required-parameter-infos))
   (:metaclass funcallable-standard-class)
   (:default-initargs
    :method-class (find-class 'pattern-method))) ; TODO is pattern-method even needed?
@@ -550,24 +585,6 @@
                     (length (slot-value generic-function 'required-parameter-infos))))
       (setf (slot-value generic-function 'required-parameter-infos)
             (map-into (make-list num-required) #'make-required-parameter-info)))))
-
-(defun pattern-generic-function-ensure-binding-slot (generic-function path-info)
-  (declare (type path-info path-info))
-  (flet ((slot-compatible-p (slot)
-           (some (compose (curry #'equal (path-info-path path-info))
-                          #'path-info-path)
-                 (rest slot)))
-         (slot-unused-p (slot)
-           (every (compose #'emptyp #'path-info-specializers)
-                  (rest slot))))
-    (let* ((binding-slots (generic-function-binding-slots generic-function))
-           (slot          (or (find-if #'slot-compatible-p binding-slots)
-                              (find-if #'slot-unused-p binding-slots)
-                              (let ((cell (list :cell)))
-                                (vector-push-extend cell binding-slots)
-                                cell))))
-      (pushnew path-info (cdr slot)) ; TODO previously test #'equal :key #'path-info-path
-      (position slot binding-slots))))
 
 (defmethod generic-function-required-parameter-infos :before
     ((generic-function pattern-generic-function))
@@ -592,7 +609,6 @@
     (flet ((install ()
              (multiple-value-bind (maker accepts-next-method-p)
                  (make-generalizer-maker
-                  generic-function
                   (elt (generic-function-required-parameter-infos generic-function) arg-position))
               (let* ((next (when accepts-next-method-p (call-next-method))))
                 (setf cell (if accepts-next-method-p
