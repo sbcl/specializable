@@ -180,25 +180,29 @@
         pattern)
        variables))))
 
-;; This generates a lambda expression of the form
+;; This generates a lambda expression of the form (a-g-f =
+;; argument-generalizing-function):
 ;;
-;;   (lambda (arg call-next-method)
+;;   (lambda (arg [next-a-g-f])
 ;;     (match arg
 ;;       (MOST-SPECIFIC-PATTERN-IN-COMPONENT
 ;;         (let ((bindings (make-array NUMBER-OF-PATTERN-VARS :initial-element nil)))
 ;;           (setf (aref bindings 0) PATTERN-VAR1)
 ;;           (setf (aref bindings 1) PATTERN-VAR2)
 ;;           …
-;;           (make-pattern-generalizer
+;;           (make-pattern-generalizer[-with-next]
 ;;            ;; Specializers of applicable methods, most specific
 ;;            ;; first.
 ;;            '(SPECIALIZER-OBJECTS)
 ;;            'PATTERNS-AS-HASH-KEY
-;;            bindings))))
+;;            bindings
+;;            [(funcall next-a-g-f arg)]))))
 ;;       CLAUSES-FOR-LESS-SPECIFIC-PATTERNS-IN-CLUSTER))
 ;;
-(defun make-generalizer-maker-form (components paths accept-next-method-p)
-  (with-unique-names (arg call-next-method bindings)
+;; The forms next-a-g-f-related forms are only generated if
+;; ACCEPT-NEXT-A-G-F-P is true.
+(defun make-generalizer-maker-form (components paths accept-next-a-g-f-p)
+  (with-unique-names (arg next-a-g-f bindings)
     (labels ((make-binding-vector (variables) ; TODO separate function?
                (when (emptyp variables)
                  (return-from make-binding-vector
@@ -232,10 +236,12 @@
                       (mapcar #'path-info-path used-paths))
                    `(,(unparse-pattern pattern)
                      (let ((,bindings ,(make-binding-vector variables)))
-                       (make-pattern-generalizer
+                       (,(if accept-next-a-g-f-p
+                             'make-pattern-generalizer-with-next
+                             'make-pattern-generalizer)
                         '(,@specializers) ',key ,bindings
-                        ,@(when accept-next-method-p
-                            `((funcall (sb-ext:truly-the function ,call-next-method) ,arg)))))))))
+                        ,@(when accept-next-a-g-f-p
+                            `((funcall (sb-ext:truly-the function ,next-a-g-f) ,arg)))))))))
              (make-component-clauses (component)
                "Return a list of `optima:match' clauses each of which
                 handles one of the specializers in COMPONENT."
@@ -243,9 +249,9 @@
                (mapcar (lambda (specializer)
                          (make-component-subset-clause component specializer))
                        (specializer-component-specializers component))))
-      `(lambda (,arg ,@(when accept-next-method-p `(,call-next-method)))
-         ,@(when accept-next-method-p
-             `((declare (type function ,call-next-method))))
+      `(lambda (,arg ,@(when accept-next-a-g-f-p `(,next-a-g-f)))
+         ,@(when accept-next-a-g-f-p
+             `((declare (type function ,next-a-g-f))))
          (match ,arg
            ,@(mappend #'make-component-clauses components)
            (otherwise
@@ -255,7 +261,8 @@
   (declare (type required-parameter-info parameter))
   (let* ((paths (map 'list #'second
                     (generic-function-binding-slots generic-function))) ; TODO put into parameter-info
-        (components (required-parameter-info-components parameter))
-        (accept-next-method-p (when (required-parameter-info-other-specializers parameter) t))
-        (form (make-generalizer-maker-form components paths accept-next-method-p)))
-    (values (compile nil form) accept-next-method-p))) ; TODO handle failed compilation?
+         (components (required-parameter-info-components parameter))
+         ;; a-g-f = argument-generalizing-function
+        (accept-next-a-g-f-p (when (required-parameter-info-other-specializers parameter) t))
+        (form (make-generalizer-maker-form components paths accept-next-a-g-f-p)))
+    (values (compile nil form) accept-next-a-g-f-p))) ; TODO handle failed compilation?

@@ -6,26 +6,44 @@
 
 (cl:in-package #:pattern-specializer)
 
-;;; `pattern-generalizer' class
+;;; `pattern-generalizer[-with-next]' structures
+;;;
+;;; When it is known that the "next" generalizer (the result of
+;;; calling `class-of' being a typical example) is never used,
+;;; `pattern-generalizer' instances are used.
+;;;
+;;; Otherwise `pattern-generalizer-with-next' instances are used and
+;;; the `next' slot is initialized by calling the next argument
+;;; generalizing function.
 
 (declaim (inline make-pattern-generalizer))
 (defstruct (pattern-generalizer
-             (:constructor make-pattern-generalizer
-                           (specializers key variables &optional next))
+             (:constructor make-pattern-generalizer (specializers key variables))
              (:copier nil))
-  (specializers nil :type list   :read-only t)
-  (key          nil :type t      :read-only t)
-  (variables    nil :type vector :read-only t)
-  (next         nil :type t)) ; TODO needed? can this be read-only?
+  (specializers nil :type list         :read-only t)
+  (key          nil :type t            :read-only t)
+  (variables    nil :type simple-array :read-only t))
 
 (defmethod specializable:generalizer-equal-hash-key
     ((generic-function specializable:specializable-generic-function)
      (generalizer pattern-generalizer))
-  (let ((key (pattern-generalizer-key generalizer)))
-    (if-let ((next (pattern-generalizer-next generalizer))) ; TODO compute lazily?
-      (cons key (specializable:generalizer-equal-hash-key
-                 generic-function next))
-      key)))
+  (pattern-generalizer-key generalizer))
+
+(declaim (inline make-pattern-generalizer-with-next))
+(defstruct (pattern-generalizer-with-next
+             (:include pattern-generalizer)
+             (:constructor make-pattern-generalizer-with-next
+                           (specializers key variables next))
+             (:copier nil))
+  (next (required-argument :next) :type t :read-only t))
+
+(defmethod specializable:generalizer-equal-hash-key
+    ((generic-function specializable:specializable-generic-function)
+     (generalizer pattern-generalizer-with-next))
+  (cons (pattern-generalizer-key generalizer)
+        (specializable:generalizer-equal-hash-key
+         generic-function
+         (pattern-generalizer-with-next-next generalizer))))
 
 ;;; `pattern-specializer' class
 
@@ -128,8 +146,8 @@
     ((generic-function specializable:specializable-generic-function)
      (specializer1 class)
      (specializer2 class)
-     (generalizer pattern-generalizer))
-  (let ((next (pattern-generalizer-next generalizer)))
+     (generalizer pattern-generalizer-with-next))
+  (let ((next (pattern-generalizer-with-next-next generalizer)))
     (cond
       ((typep next 'class)
        (specializable:specializer< generic-function specializer1 specializer2 next))
@@ -178,10 +196,9 @@
 (defmethod specializable:specializer-accepts-generalizer-p
     ((gf specializable:specializable-generic-function)
      (specializer t)
-     (generalizer pattern-generalizer))
-  (if-let ((next (pattern-generalizer-next generalizer))) ; TODO needed?
-    (specializable:specializer-accepts-generalizer-p gf specializer next)
-    (values nil t)))
+     (generalizer pattern-generalizer-with-next))
+  (specializable:specializer-accepts-generalizer-p
+   gf specializer (pattern-generalizer-with-next-next generalizer)))
 
 (defmethod specializable:specializer-accepts-generalizer-p
     ((gf specializable:specializable-generic-function)
