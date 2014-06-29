@@ -32,6 +32,16 @@
 ;;;     Return a function with lambda-list (args generalizers) which
 ;;;     produces the \"effective argument list\".
 ;;;
+;;; An additional method on the following generic function can be
+;;; defined to improve performance of generalizer object computation
+;;; by avoiding generic function calls of
+;;; `generalizer-of-using-class':
+;;;
+;;;   compute-argument-generalizing-function generic-function arg-position
+;;;
+;;;     Return a function of one argument that computes generalizer
+;;;     objects.
+;;;
 ;;; Specializers used in methods of the generic function have to
 ;;; implement the protocol for extended specializers below. Similarly,
 ;;; for generalizers returned by `generalizers-of-using-class', the
@@ -46,6 +56,18 @@
 
     This is called once for each pair of required argument OBJECT and
     its position in the lambda-list ARG-POSITION."))
+
+(defgeneric compute-argument-generalizing-function (generic-function arg-position)
+  (:documentation
+   "Return a function that turns an argument into a generalizer
+    object.
+
+    When called with the required argument at ARG-POSITION in a call
+    of GENERIC-FUNCTION, the function must compute and return the
+    generalizer object for that argument.
+
+    This can be accomplishes by calling the generic function
+    `generalizer-of-using-class'."))
 
 (defgeneric compute-effective-arguments-function (generic-function num-required)
   (:documentation
