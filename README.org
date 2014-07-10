@@ -43,6 +43,8 @@
     slot of =cons= objects. See [[file:examples/cons-specializer.lisp]].
   + =accept-specializer= for dispatch based on HTTP content
     negotiation. See [[file:examples/accept-specializer.lisp]].
+  + =prototype-specializer= for dispatch on prototype objects. See
+    [[file:examples/prototype-specializer.lisp]]
 
 * Footnotes
 
