@@ -37,4 +37,5 @@
 (mapcar #'compute-coverage-for-system
         '(:specializable
           :language-extension.cons-specializer
-          :language-extension.accept-specializer))
+          :language-extension.accept-specializer
+          :language-extension.prototype-specializer))
