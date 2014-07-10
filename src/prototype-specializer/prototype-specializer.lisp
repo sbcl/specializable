@@ -11,34 +11,37 @@
 
 (defclass prototype-object () ()) ; forward declaration
 
-(defstruct (role (:type list) (:constructor make-role (method argpos)))
+(defstruct (role (:type list)
+                 (:constructor make-role (method argpos))
+                 (:copier nil))
   method argpos)
 (defun add-role (obj role)
-  (let ((pos (role-argpos role))
+  (let ((position (role-argpos role))
         (roles (roles obj)))
-    (unless (< pos (length roles))
-      (dotimes (i (- (1+ pos) (length roles)))
-        (vector-push-extend nil roles)))
-    (pushnew (role-method role) (aref roles pos))))
+    (unless (< position (length roles))
+      (adjust-array roles (1+ position)
+                    :initial-element '() :fill-pointer (1+ position)))
+    (pushnew (role-method role) (aref roles position))))
 (defun remove-role (obj role)
-  (let ((pos (role-argpos role)))
-    (setf (aref (roles obj) pos)
-          (remove (role-method role) (aref (roles obj) pos)))
-    (tagbody
-     start
-       (when (or (= (length (roles obj)) 0)
-                 (aref (roles obj) (1- (length (roles obj)))))
-         (go done))
-       (vector-pop (roles obj))
-       (go start)
-     done)))
+  (let ((position (role-argpos role))
+        (roles (roles obj)))
+    (setf (aref roles position)
+          (remove (role-method role) (aref roles position)))
+    ;; Remove trailing NILs in ROLES.
+    (loop :until (or (zerop (length roles))
+                     (aref roles (1- (length roles))))
+       :do (vector-pop roles))))
 (defun find-role (role obj)
-  (when (< (role-argpos role) (length (roles obj)))
-    (find (role-method role) (aref (roles obj) (role-argpos role)))))
-(defun map-roles (fun obj)
-  (dotimes (i (length (roles obj)))
-    (dolist (m (aref (roles obj) i))
-      (funcall fun (make-role m i)))))
+  (let ((position (role-argpos role))
+        (roles (roles obj)))
+    (when (< position (length roles))
+      (find (role-method role) (aref roles position)))))
+(defun map-roles (function object)
+  (let ((function (coerce function 'function))
+        (roles (roles object)))
+    (dotimes (i (length roles))
+      (dolist (m (aref roles i))
+        (funcall function (make-role m i))))))
 (defmacro do-roles ((rvar form &optional result) &body body)
   `(progn (map-roles (lambda (,rvar) ,@body) ,form) ,result))
 
@@ -50,11 +53,11 @@
             :accessor roles)
      ;; debugging aid
      (name :initarg :name))))
-(defmethod print-object ((o prototype-object) s)
+(defmethod print-object ((o prototype-object) stream)
   (if (slot-boundp o 'name)
-      (format s "~S" (slot-value o 'name))
-      (print-unreadable-object (o s :type t :identity t)
-        (format s "[~{~S~^, ~}]" (delegations o)))))
+      (format stream ">~S" (slot-value o 'name))
+      (print-unreadable-object (o stream :type t :identity t)
+        (format stream "[~{~S~^, ~}]" (delegations o)))))
 
 (declaim (ftype (function (prototype-object prototype-object))
                 add-delegation))
@@ -82,12 +85,20 @@
                 remove-delegation))
 (defun remove-delegation (obj)
   (pop (delegations obj)))
-(defun map-delegations (fun obj)
-  (funcall fun obj)
-  ;; FIXME: should we maintain a table of visited nodes?  Should it be
-  ;; topologically sorted?  Section 5.3 in PwMD [Salzman & Aldrich]
-  ;; suggests not, at least for now
-  (mapc (lambda (o) (map-delegations fun o)) (delegations obj))
+
+(declaim (ftype (function ((or function symbol cons) prototype-object))
+                map-delegations))
+(defun map-delegations (function object)
+  (let ((function (coerce function 'function)))
+    (labels ((recur (object)
+               (funcall function object)
+               ;; FIXME: should we maintain a table of visited nodes?
+               ;; Should it be topologically sorted?  Section 5.3 in
+               ;; PwMD [Salzman & Aldrich] suggests not, at least for
+               ;; now
+               (mapc #'recur (delegations object))))
+      (declare (dynamic-extent #'recur))
+      (recur object)))
   nil)
 (declaim (ftype (function ((or function symbol cons) prototype-object))
                 map-delegations-and-paths))
@@ -102,11 +113,11 @@
       (recur object '())))
   nil)
 
-(defun clone (p)
+(defun clone (object)
   (let ((result (make-instance 'prototype-object
-                               :delegations (copy-list (delegations p)))))
-    (do-roles (r p result)
-      (add-role result r))))
+                               :delegations (copy-list (delegations object)))))
+    (do-roles (role object result)
+      (add-role result role))))
 
 (sb-ext:defglobal /root/
     (make-instance 'prototype-object :name '/root/ :delegations nil))
@@ -175,52 +186,46 @@
   (make-instance 'late-prototype-specializer :object name))
 
 (defmethod sb-pcl:unparse-specializer-using-class
-    ((gf prototype-generic-function) (s early-prototype-specializer))
-  (prototype-specializer-object s))
+    ((gf prototype-generic-function) (specializer early-prototype-specializer))
+  (prototype-specializer-object specializer))
 (defmethod sb-pcl:unparse-specializer-using-class
-    ((gf prototype-generic-function) (s late-prototype-specializer))
-  (let ((object (prototype-specializer-object s)))
+    ((gf prototype-generic-function) (specializer late-prototype-specializer))
+  (let ((object (prototype-specializer-object specializer)))
     (if (slot-boundp object 'name)
         (slot-value object 'name)
-        s)))
+        specializer)))
 
-(defmethod add-method :after ((gf prototype-generic-function) m)
-  (let ((ss (sb-mop:method-specializers m)))
-    (do* ((i 0 (1+ i))
-          (ss ss (cdr ss))
-          (s (car ss) (car ss)))
-         ((null ss))
-      (when (typep s 'late-prototype-specializer)
-        (let ((object (prototype-specializer-object s))
-              (role (make-role m i)))
-          (setf (prototype-specializer-role s) role)
-          (add-role object role))))))
-(defmethod remove-method :after ((gf prototype-generic-function) m)
-  (let ((ss (sb-mop:method-specializers m)))
-    (do* ((i 0 (1+ i))
-          (ss ss (cdr ss))
-          (s (car ss) (car ss)))
-         ((null ss))
-      (when (typep s 'late-prototype-specializer)
-        (let ((object (prototype-specializer-object s))
-              (role (make-role m i)))
-          (setf (prototype-specializer-role s) nil)
-          ;; this is one of the places where the semantics
-          ;; are... dodgy.  Removing the method from the generic
-          ;; function, and the role from the object, doesn't affect
-          ;; the roles in any clones.  We could potentially use the
-          ;; fact that once removed the method is no longer associated
-          ;; with a generic function?  Hm, C-A-M will not consider the
-          ;; removed method for applicability...
-          (remove-role object role))))))
+(defmethod add-method :after ((gf prototype-generic-function) method)
+  (loop :for specializer :in (sb-mop:method-specializers method)
+     :for i :from 0
+     :do (when (typep specializer 'late-prototype-specializer)
+           (let ((object (prototype-specializer-object specializer))
+                 (role (make-role method i)))
+             (setf (prototype-specializer-role specializer) role)
+             (add-role object role)))))
+(defmethod remove-method :after ((gf prototype-generic-function) method)
+  (loop :for specializer :in (sb-mop:method-specializers method)
+     :for i :from 0
+     :do (when (typep specializer 'late-prototype-specializer)
+           (let ((object (prototype-specializer-object specializer))
+                 (role (make-role method i)))
+             (setf (prototype-specializer-role specializer) nil)
+             ;; this is one of the places where the semantics
+             ;; are... dodgy.  Removing the method from the generic
+             ;; function, and the role from the object, doesn't affect
+             ;; the roles in any clones.  We could potentially use the
+             ;; fact that once removed the method is no longer
+             ;; associated with a generic function?  Hm, C-A-M will
+             ;; not consider the removed method for applicability...
+             (remove-role object role)))))
 
 (defmethod generalizer-of-using-class
     ((gf prototype-generic-function) (object prototype-object))
   object)
 
 (defmethod specializer-accepts-generalizer-p
-    ((gf prototype-generic-function) (s late-prototype-specializer) object)
-  (values (specializer-accepts-p s object) t))
+    ((gf prototype-generic-function) (specializer late-prototype-specializer) object)
+  (values (specializer-accepts-p specializer object) t))
 
 (defmethod specializer-accepts-p ((specializer late-prototype-specializer) object)
   (cond
@@ -237,18 +242,20 @@
 (defmethod specializer< ((gf prototype-generic-function)
                          (s1 late-prototype-specializer)
                          (s2 late-prototype-specializer)
-                         g)
+                         generalizer)
   (let ((o1 (prototype-specializer-object s1))
         (o2 (prototype-specializer-object s2)))
     (map-delegations
-     (lambda (o)
+     (lambda (object)
        (cond
-         ((eql o o1) (return-from specializer< '<))
-         ((eql o o2) (return-from specializer< '>))))
-     g)
+         ((eql object o1) (return-from specializer< '<))
+         ((eql object o2) (return-from specializer< '>))))
+     generalizer)
     '=))
 
-(defmethod compute-applicable-methods-using-generalizers ((gf prototype-generic-function) generalizers)
+(defmethod compute-applicable-methods-using-generalizers
+    ((gf prototype-generic-function) generalizers)
   (values nil nil))
-(defmethod generalizer-equal-hash-key ((gf prototype-generic-function) (g prototype-object))
-  g)
+(defmethod generalizer-equal-hash-key ((gf prototype-generic-function)
+                                       (generalizer prototype-object))
+  generalizer)
