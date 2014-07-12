@@ -25,6 +25,13 @@
                               (:file       "specializable"))))
   :in-order-to ((test-op (test-op :specializable-test))))
 
+(defmethod perform :before ((operation load-op) (component (eql (find-system :specializable))))
+  (flet ((loose ()
+           (error "This system only work on SBCL, version 1.1.2 or newer")))
+    #-sbcl (loose)
+    (let ((version-assert (find-symbol "ASSERT-VERSION->=" :sb-ext)))
+      (unless (and version-assert (funcall version-assert 1 1 2))))))
+
 (defsystem :specializable-test
   :author      "Jan Moringen <jmoringe@techfak.uni-bielefeld.de>"
   :author      "Christophe Rhodes <csr21@cantab.net>"
