@@ -240,12 +240,18 @@
                       (mapcar #'path-info-path used-paths))
                    `(,(unparse-pattern pattern)
                      (let ((,bindings ,(make-binding-vector variables)))
+                       #+no ,@(when *debug*
+                                `((debug-clause-matching
+                                   ,arg ,pattern (list ,@specializers)
+                                   ',binding-slot-infos ',variables ,bindings)))
                        (,(if accept-next-a-g-f-p
                              'make-pattern-generalizer-with-next
                              'make-pattern-generalizer)
                         '(,@specializers) ',key ,bindings
                         ,@(when accept-next-a-g-f-p
-                            `((funcall (sb-ext:truly-the function ,next-a-g-f) ,arg)))))))))
+                            `((funcall (sb-ext:truly-the function ,next-a-g-f) ,arg))))))
+                   #+no (debug-clause pattern specializers binding-slot-infos variables form)
+                   )))
              (make-component-clauses (component)
                "Return a list of `optima:match' clauses each of which
                 handles one of the specializers in COMPONENT."
@@ -256,9 +262,11 @@
       `(lambda (,arg ,@(when accept-next-a-g-f-p `(,next-a-g-f)))
          ,@(when accept-next-a-g-f-p
              `((declare (type function ,next-a-g-f))))
+         (debug-try-match ,arg)
          (match ,arg
            ,@(mappend #'make-component-clauses components)
            (otherwise
+            (debug-no-match)
             nil))))))
 
 (defun make-generalizer-maker (parameter)
@@ -268,4 +276,5 @@
          ;; a-g-f = argument-generalizing-function
          (accept-next-a-g-f-p (when (required-parameter-info-other-specializers parameter) t))
          (form (make-generalizer-maker-form components binding-slot-infos accept-next-a-g-f-p)))
+    (debug-generalizer-maker-form form)
     (values (compile nil form) accept-next-a-g-f-p))) ; TODO handle failed compilation?

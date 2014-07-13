@@ -38,7 +38,9 @@
                               (:file       "conditions")
                               (:file       "protocol")
                               (:file       "discrimination")
-                              (:file       "pattern-specializer"))))
+                              (:file       "pattern-specializer")
+
+                              (:file       "debug"))))
 
   :in-order-to ((test-op (test-op :language-extension.pattern-specializer-test))))
 

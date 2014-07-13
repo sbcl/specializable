@@ -449,6 +449,9 @@
         ;; lambda-list.
         (check-parameter-variable-name-clashes lambda-list specializers/parsed)
 
+        ;;
+        (debug-method-lambda specializers new-lambda-expression)
+
         ;; Inject the types of the binding variable vectors in front
         ;; of SPECIALIZERS to account for the injected parameters.
         (call-next-method generic-function method qualifiers
@@ -613,8 +616,14 @@
               (let* ((next (when accepts-next-method-p (call-next-method))))
                 (setf cell (if accepts-next-method-p
                                (lambda (object)
-                                 (or (funcall (sb-ext:truly-the function maker) object next)
-                                     (funcall (sb-ext:truly-the function next) object)))
+                                 (or (when-let ((generalizer
+                                                 (funcall (sb-ext:truly-the function maker) object next)))
+                                       (debug-generalizer/match generalizer)
+                                       generalizer)
+                                     (when-let ((generalizer
+                                                 (funcall (sb-ext:truly-the function next) object)))
+                                       (debug-generalizer/next generalizer)
+                                       generalizer)))
                                (lambda (object)
                                  (funcall (sb-ext:truly-the function maker) object))))))))
       (setf cell (lambda (object)
