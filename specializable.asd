@@ -28,6 +28,7 @@
   :components  ((:module "test"
                  :serial t
                  :components ((:file       "package")
+                              (:file       "util")
                               (:file       "specializable")))) )
 
 (defmethod perform ((operation test-op) (component (eql (find-system :specializable-test))))
