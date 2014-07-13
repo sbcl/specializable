@@ -3,6 +3,7 @@
 ;;;; Copyright (C) 2013, 2014 Christophe Rhodes,
 ;;;;
 ;;;; Author: Christophe Rhodes <csr21@cantab.net>
+;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
 
 (cl:in-package #:prototype-specializer)
 
@@ -55,8 +56,19 @@
       (print-unreadable-object (o s :type t :identity t)
         (format s "[~{~S~^, ~}]" (delegations o)))))
 
-(defun add-delegation (obj del)
-  (push del (delegations obj)))
+(declaim (ftype (function (prototype-object prototype-object))
+                add-delegation))
+(defun add-delegation (object delegation)
+  (map-delegations
+   (lambda (old-delegation)
+     (when (eq delegation old-delegation)
+       (error "~@<Adding delegation ~A to ~A would create a delegation
+               cycle.~@:>"
+              delegation object)))
+   object)
+  (push delegation (delegations object)))
+(declaim (ftype (function (prototype-object))
+                remove-delegation))
 (defun remove-delegation (obj)
   (pop (delegations obj)))
 (defun map-delegations (fun obj)
