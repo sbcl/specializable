@@ -7,9 +7,13 @@
 (cl:defpackage #:prototype-specializer.test
   (:use
    #:cl
+   #:alexandria ; for `set-equal'
    #:fiveam
 
    #:prototype-specializer)
+
+  (:import-from #:specializable-test
+   #:with-specializable-generic-function)
 
   (:export
    #:run-tests))
