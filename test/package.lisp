@@ -4,11 +4,24 @@
 ;;;;
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
 
-(cl:defpackage "SPECIALIZABLE-TEST"
-  (:use "CL" "SPECIALIZABLE" "FIVEAM")
-  (:export "RUN-TESTS"))
+(cl:defpackage #:specializable-test
+  (:use
+   #:cl
 
-(cl:in-package "SPECIALIZABLE-TEST")
+   #:fiveam
+
+   #:specializable)
+
+  ;; Test utilities
+  (:export
+   #:define-specializable-generic-function
+   #:with-specializable-generic-function)
+
+  ;; Test execution protocol
+  (:export
+   #:run-tests))
+
+(cl:in-package #:specializable-test)
 
 (def-suite :specializable
   :description
