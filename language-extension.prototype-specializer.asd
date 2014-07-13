@@ -15,6 +15,7 @@
                  :pathname   "src/prototype-specializer"
                  :serial     t
                  :components ((:file       "package")
+                              (:file       "conditions")
                               (:file       "prototype-specializer"))))
 
   :in-order-to ((test-op (test-op :language-extension.prototype-specializer-test))))

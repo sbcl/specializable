@@ -7,13 +7,22 @@
 (cl:defpackage #:prototype-specializer
   (:use
    #:cl
+   #:alexandria
    #:specializable)
+
+  ;; Conditions
+  (:export
+   #:delegation-cycle-error
+   #:delegation-cycle-error-object
+   #:delegation-cycle-error-delegation
+   #:delegation-cycle-error-path)
 
   ;; Prototype object protocol
   (:export
    #:add-delegation
    #:remove-delegation
    #:map-delegations
+   #:map-delegations-and-paths
 
    #:clone)
 

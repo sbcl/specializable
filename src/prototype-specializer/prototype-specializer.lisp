@@ -3,6 +3,7 @@
 ;;;; Copyright (C) 2013, 2014 Christophe Rhodes
 ;;;;
 ;;;; Author: Christophe Rhodes <csr21@cantab.net>
+;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
 
 (cl:in-package #:prototype-specializer)
 
@@ -55,8 +56,30 @@
       (print-unreadable-object (o s :type t :identity t)
         (format s "[~{~S~^, ~}]" (delegations o)))))
 
-(defun add-delegation (obj del)
-  (push del (delegations obj)))
+(declaim (ftype (function (prototype-object prototype-object))
+                add-delegation))
+(defun add-delegation (object delegation)
+  ;; Check for cyclic delegations DELEGATION may introduce.
+  ;;
+  ;; MAP-DELEGATIONS-AND-PATHS conses and is generally slower. So
+  ;; perform a quick check via MAP-DELEGATIONS and only call
+  ;; MAP-DELEGATIONS-AND-PATHS if an error report has to be generated.
+  (flet ((loose ()
+           (map-delegations-and-paths
+            (lambda (other-delegation path)
+              (when (eq object other-delegation)
+                (error 'delegation-cycle-error
+                       :object     object
+                       :delegation delegation
+                       :path       (list* object (reverse (list* object path))))))
+            delegation)))
+    (map-delegations (lambda (other-delegation)
+                       (when (eq object other-delegation)
+                         (loose)))
+                     delegation))
+  (pushnew delegation (delegations object)))
+(declaim (ftype (function (prototype-object))
+                remove-delegation))
 (defun remove-delegation (obj)
   (pop (delegations obj)))
 (defun map-delegations (fun obj)
@@ -65,6 +88,18 @@
   ;; topologically sorted?  Section 5.3 in PwMD [Salzman & Aldrich]
   ;; suggests not, at least for now
   (mapc (lambda (o) (map-delegations fun o)) (delegations obj))
+  nil)
+(declaim (ftype (function ((or function symbol cons) prototype-object))
+                map-delegations-and-paths))
+(defun map-delegations-and-paths (function object)
+  (let ((function (coerce function 'function)))
+    (labels ((recur (object path)
+               (funcall function object path)
+               (when-let ((delegations (delegations object)))
+                 (mapc (rcurry #'recur (list* object path))
+                       delegations))))
+      (declare (dynamic-extent #'recur))
+      (recur object '())))
   nil)
 
 (defun clone (p)
