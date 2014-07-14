@@ -145,16 +145,16 @@
      (PATH NAME POSITION)
 
    where PATH is "
-  #+no (format t "  ~S~%~{  ~S~%~}"
+  (format t "~S~%~{| ~S~%~}"
           'augment-pattern-for-discriminating-function paths)
   (let ((variables '()))
     (flet ((maybe-add-entry (name position)
              #+no (if (find position variables :test #'= :key #'third)
-                 (format t "  ~A ~60T=> duplicate~%"
-                         path)
-                 (format t "  ~A ~60T=> ~A~%    ~A~%"
-                         path position
-                         (list path name position)))
+                 (format t "  ~A => duplicate~%"
+                         :path)
+                 (format t "  ~A => ~A~%    ~A~%"
+                         :path position
+                         (list name position)))
              (unless (find position variables :test #'eq :key #'second)
                (push (list name position) variables))))
       (values
@@ -171,7 +171,7 @@
                 (variable-pattern
                  (let ((name (variable-pattern-name pattern)))
                    (maybe-add-entry name position))
-                 (values))               ; copy the pattern unmodified
+                 (values)) ; copy the pattern unmodified
                 ((not (or guard-pattern and-pattern))
                  (let ((name (gensym)))
                    (when (maybe-add-entry name position)
