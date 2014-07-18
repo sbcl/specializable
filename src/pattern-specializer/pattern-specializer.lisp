@@ -65,12 +65,10 @@
       (setf (slot-value specializer 'parsed-pattern)
             (parse-pattern (specializer-pattern specializer)))))
 
+;; TODO remove? logic conversion does normalization
 (defun specializer-normalized-pattern (specializer) ; TODO cache?
-  (let ((normalized (pattern-specializer.optima-extensions::normalize-pattern
-                     (specializer-parsed-pattern specializer))))
-    (typecase normalized
-      (optima.core:and-pattern normalized)
-      (t                       (optima.core:make-and-pattern normalized)))))
+  (pattern-specializer.optima-extensions::pattern-normalize
+   '(:literal :cnf/strict) (specializer-parsed-pattern specializer)))
 
 (specializable:define-extended-specializer pattern (generic-function pattern)
   (declare (ignore generic-function))
@@ -108,9 +106,8 @@
      (specializer1 pattern-specializer)
      (specializer2 pattern-specializer)
      (generalizer t))
-  (pattern-more-specific-p
-   (specializer-normalized-pattern specializer1)
-   (specializer-normalized-pattern specializer2)))
+  (pattern-more-specific-p (specializer-parsed-pattern specializer1)
+                           (specializer-parsed-pattern specializer2)))
 
 ;; TODO necessary?
 (defmethod specializable:specializer<
