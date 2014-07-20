@@ -12,9 +12,10 @@
 (cl:in-package #:prototype-specializer.example)
 
 (defmacro defpvar (name value)
-  `(let ((val ,value))
-     (setf (slot-value val 'prototype-specializer::name) ',name)
-     (defparameter ,name val)))
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
+     (let ((val ,value))
+       (setf (slot-value val 'prototype-specializer::name) ',name)
+       (defparameter ,name val))))
 
 (defpvar /animal/ (clone /root/))
 (defpvar /fish/ (clone /root/))
@@ -25,15 +26,17 @@
 (add-delegation /shark/ /animal/)
 (add-delegation /shark/ /healthy-shark/)
 
-(defgeneric fight (x y)
-  (:generic-function-class prototype-generic-function))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defgeneric fight (x y)
+    (:generic-function-class prototype-generic-function)))
 (defmethod fight ((x /healthy-shark/) (y /shark/))
   (remove-delegation x)
   (add-delegation x /dying-shark/)
   x)
 
-(defgeneric encounter (x y)
-  (:generic-function-class prototype-generic-function))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defgeneric encounter (x y)
+    (:generic-function-class prototype-generic-function)))
 (defmethod encounter ((x /fish/) (y /healthy-shark/))
   (format t "~&~A swims away~%" x))
 (defmethod encounter ((x /fish/) (y /animal/))
@@ -43,3 +46,7 @@
 (defmethod encounter ((x /healthy-shark/) (y /shark/))
   (format t "~&~A fights ~A~%" x y)
   (fight x y))
+
+;; It is possible to use PROTOTYPE-OBJECTs (as opposed to their names)
+;; #.`(defmethod encounter ((x /fish/) (y ,/animal/))
+;;      x)
