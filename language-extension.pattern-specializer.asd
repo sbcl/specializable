@@ -24,9 +24,15 @@
                               (:file       "normalize")
                               (:file       "order")))
 
+                (:module     "logic"
+                 :pathname   "src/pattern-specializer/optima-extensions"
+                 :depends-on ("optima-extensions")
+                 :serial     t
+                 :components ((:file       "satisfiable")))
+
                 (:module     "pattern-specializer"
                  :pathname   "src/pattern-specializer"
-                 :depends-on ("optima-extensions")
+                 :depends-on ("optima-extensions" "logic")
                  :serial     t
                  :components ((:file       "package"))))
 
