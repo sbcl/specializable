@@ -101,13 +101,31 @@
 (defclass prototype-specializer (extended-specializer)
   ((role :accessor prototype-specializer-role)
    (object :initarg :object :accessor prototype-specializer-object)))
-(defmethod print-object ((o prototype-specializer) s)
-  (print-unreadable-object (o s :type t :identity t)
-    (format s "~S" (prototype-specializer-object o))))
 (defmethod sb-pcl::same-specializer-p
     ((s1 prototype-specializer) (s2 prototype-specializer))
   (eql (prototype-specializer-object s1)
        (prototype-specializer-object s2)))
+
+;; Instances of this class are used when a specializer object has to
+;; be created for a prototype object that is only known by name
+;; (e.g. at DEFMETHDO macroexpansion time).
+(defclass early-prototype-specializer (prototype-specializer)
+  ((object :type symbol)))
+(defmethod print-object ((object early-prototype-specializer) stream)
+  (print-unreadable-object (object stream :type t :identity t)
+    (format stream "object named ~S" (prototype-specializer-object object))))
+
+(defclass late-prototype-specializer (prototype-specializer)
+  (;; FIXME This slot type may be too restrictive later but is useful
+   ;; now to catch things like constructing a specializer with a
+   ;; symbol instead of the object named by it (at high debug and/or
+   ;; safety optimization qualities). That particular problem could
+   ;; happen for example if something went wrong in the
+   ;; SPECIALIZER-TYPE-SPECIFIER protocol.
+   (object :type prototype-object)))
+(defmethod print-object ((object late-prototype-specializer) stream)
+  (print-unreadable-object (object stream :type t :identity t)
+    (format stream "~S" (prototype-specializer-object object))))
 
 ;;; prototype-generic-function
 
@@ -119,16 +137,25 @@
   (flet ((frob (x)
            (typecase x
              (sb-mop:specializer x)
-             (symbol `(make-instance 'prototype-specializer :object ,x))
+             ((or symbol prototype-object)
+              `(make-instance 'late-prototype-specializer :object ,x))
              ((cons (eql 'class)) `(find-class ',(cadr x)))
              ((cons (eql 'eql)) `(sb-mop:intern-eql-specializer ,(cadr x)))
              (t (error "unexpected specializer name: ~S" x)))))
     `(list ,@(mapcar #'frob snames))))
+
 (defmethod sb-pcl:parse-specializer-using-class
-    ((gf prototype-generic-function) name)
-  (make-instance 'prototype-specializer :object name))
+    ((gf prototype-generic-function) (name symbol))
+  (make-instance 'early-prototype-specializer :object name))
+(defmethod sb-pcl:parse-specializer-using-class
+    ((gf prototype-generic-function) (name prototype-object))
+  (make-instance 'late-prototype-specializer :object name))
+
 (defmethod sb-pcl:unparse-specializer-using-class
-    ((gf prototype-generic-function) (s prototype-specializer))
+    ((gf prototype-generic-function) (s early-prototype-specializer))
+  (prototype-specializer-object s))
+(defmethod sb-pcl:unparse-specializer-using-class
+    ((gf prototype-generic-function) (s late-prototype-specializer))
   (let ((object (prototype-specializer-object s)))
     (if (slot-boundp object 'name)
         (slot-value object 'name)
@@ -140,7 +167,7 @@
           (ss ss (cdr ss))
           (s (car ss) (car ss)))
          ((null ss))
-      (when (typep s 'prototype-specializer)
+      (when (typep s 'late-prototype-specializer)
         (let ((object (prototype-specializer-object s))
               (role (make-role m i)))
           (setf (prototype-specializer-role s) role)
@@ -151,7 +178,7 @@
           (ss ss (cdr ss))
           (s (car ss) (car ss)))
          ((null ss))
-      (when (typep s 'prototype-specializer)
+      (when (typep s 'late-prototype-specializer)
         (let ((object (prototype-specializer-object s))
               (role (make-role m i)))
           (setf (prototype-specializer-role s) nil)
@@ -169,10 +196,10 @@
   object)
 
 (defmethod specializer-accepts-generalizer-p
-    ((gf prototype-generic-function) (s prototype-specializer) object)
+    ((gf prototype-generic-function) (s late-prototype-specializer) object)
   (values (specializer-accepts-p s object) t))
 
-(defmethod specializer-accepts-p ((specializer prototype-specializer) object)
+(defmethod specializer-accepts-p ((specializer late-prototype-specializer) object)
   (cond
     ((not (typep object 'prototype-object)) nil)
     ((eql (prototype-specializer-object specializer) /root/) t)
@@ -184,7 +211,10 @@
             (return-from specializer-accepts-p t)))
         object)))))
 
-(defmethod specializer< ((gf prototype-generic-function) (s1 prototype-specializer) (s2 prototype-specializer) g)
+(defmethod specializer< ((gf prototype-generic-function)
+                         (s1 late-prototype-specializer)
+                         (s2 late-prototype-specializer)
+                         g)
   (let ((o1 (prototype-specializer-object s1))
         (o2 (prototype-specializer-object s2)))
     (map-delegations
