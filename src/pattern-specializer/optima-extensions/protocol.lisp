@@ -22,3 +22,16 @@
 
 (defmethod pattern-subpatterns ((pattern complex-pattern))
   (complex-pattern-subpatterns pattern))
+
+;;; Pattern type specifier protocol
+
+(defgeneric pattern-type-specifier (pattern)
+  (:documentation
+   "Return a type specifier that bounds the set of values matching
+    PATTERN from above.
+
+    Note that the returned type may be a very coarse approximation in
+    many cases, for example:
+
+    * (class clazz (a 1)) => clazz
+    * (guard x (< x 5))   => t"))

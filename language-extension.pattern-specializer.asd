@@ -18,7 +18,8 @@
                  :pathname   "src/pattern-specializer/optima-extensions"
                  :serial     t
                  :components ((:file       "package")
-                              (:file       "protocol")))
+                              (:file       "protocol")
+                              (:file       "type-interoperation")))
 
                 (:module     "pattern-specializer"
                  :pathname   "src/pattern-specializer"
@@ -44,7 +45,8 @@
                  :pathname   "test/pattern-specializer/optima-extensions"
                  :depends-on ("pattern-specializer")
                  :serial     t
-                 :components ((:file       "package")))))
+                 :components ((:file       "package")
+                              (:file       "type-interoperation")))))
 
 (defmethod perform ((operation test-op)
                     (component (eql (find-system :language-extension.pattern-specializer-test))))

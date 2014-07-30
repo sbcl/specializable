@@ -9,12 +9,32 @@
    #:cl
    #:alexandria)
 
+  (:import-from #:optima
+   #:match
+
+   #:guard)
+
   (:import-from #:optima.core
-   #:parse-pattern #:unparse-pattern)
+   #:parse-pattern #:unparse-pattern
+
+   #:constant-pattern                          #:constant-pattern-value
+   #:variable-pattern  #:make-variable-pattern #:variable-pattern-name
+   #:complex-pattern                           #:complex-pattern-subpatterns
+   #:cons-pattern      #:make-cons-pattern     #:cons-pattern-car-pattern #:cons-pattern-cdr-pattern
+   #:class-pattern     #:make-class-pattern    #:class-pattern-class-name #:class-pattern-slot-names
+   #:structure-pattern                         #:structure-pattern-conc-name
+   #:guard-pattern                             #:guard-pattern-subpattern #:guard-pattern-test-form
+   #:not-pattern       #:make-not-pattern      #:not-pattern-subpattern
+   #:and-pattern       #:make-and-pattern
+   #:or-pattern        #:make-or-pattern)
 
   ;; Subpattern protocol
   (:export
    #:pattern-subpatterns)
+
+  ;; Pattern type specifier protocol
+  (:export
+   #:pattern-type-specifier)
 
   ;; Basic pattern transformation framework
   (:export
