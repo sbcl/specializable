@@ -17,7 +17,8 @@
   :components  ((:module     "optima-extensions"
                  :pathname   "src/pattern-specializer/optima-extensions"
                  :serial     t
-                 :components ((:file       "package")))
+                 :components ((:file       "package")
+                              (:file       "protocol")))
 
                 (:module     "pattern-specializer"
                  :pathname   "src/pattern-specializer"
