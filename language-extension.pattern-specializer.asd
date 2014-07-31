@@ -39,6 +39,7 @@
                               (:file       "protocol")
                               (:file       "discrimination")
                               (:file       "pattern-specializer")
+                              (:file       "pattern-generic-function")
 
                               (:file       "debug"))))
 
