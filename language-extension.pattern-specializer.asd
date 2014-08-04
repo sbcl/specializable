@@ -58,6 +58,7 @@
                  :pathname   "test/pattern-specializer"
                  :serial     t
                  :components ((:file       "package")
+                              (:file       "discrimination")
                               (:file       "pattern-specializer")))
 
                 (:module     "optima-extensions"
