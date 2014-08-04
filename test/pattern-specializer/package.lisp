@@ -18,6 +18,21 @@
   (:import-from #:optima
    #:guard)
 
+  (:import-from #:pattern-specializer
+   #:pattern-specializer
+
+   #:make-specializer-component
+   #:specializer-component-add-specializer
+   #:specializer-component-remove-specializer
+
+   #:make-required-parameter-info
+
+   #:required-parameter-info-ensure-component-for
+   #:required-parameter-info-add-specializer
+   #:required-parameter-info-remove-specializer
+
+   #:required-parameter-info-ensure-binding-slot)
+
   (:export
    #:run-tests))
 
