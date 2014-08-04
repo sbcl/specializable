@@ -152,6 +152,29 @@
   (with-accessors ((specializers specializer-component-specializers)
                    (paths        specializer-component-%paths))
       component
+    ;; First remove all `augment-pattern-specializer' instances, then
+    ;; add necessary `augment-pattern-specializer' instances.
+    (setf specializers (remove-if (of-type 'augment-pattern-specializer)
+                                  specializers))
+    (tagbody
+     :restart
+       (loop :for (first . rest) :on specializers :do
+          (loop :for second :in rest :do
+             (when (specializer-relation-is-p '/= first second)
+               (let* ((augment-pattern `(and ,(unparse-pattern ; TODO make a function
+                                               (pattern-anonymize-variables
+                                                (specializer-parsed-pattern first)))
+                                             ,(unparse-pattern
+                                               (pattern-anonymize-variables
+                                                (specializer-parsed-pattern second)))))
+                      (augment-specializer
+                       (make-instance 'augment-pattern-specializer
+                                      :pattern augment-pattern)))
+                 (unless (find augment-specializer specializers
+                               :test (specializer-relation-is '=))
+                   (push augment-specializer specializers)
+                   (go :restart)))))))
+
     ;;
     (let ((specializers* (specializer-transitive-closure
                           (first specializers) (rest specializers)
@@ -252,18 +275,22 @@
                "Return an `optima:match' clause using the pattern of
                 MOST-SPECIFIC-SPECIALIZER in COMPONENT."
                (declare (type specializer-component component)
-                        (type pattern-specializer most-specific-specializer))
+                        (type (or late-pattern-specializer
+                                  augment-pattern-specializer)
+                              most-specific-specializer))
                (let* ((specializers (specializer-transitive-closure
                                      (specializer-component-specializers component)
                                      :start (list most-specific-specializer)
                                      :down nil))
-                      (used-paths   (remove nil ; TODO ugly
-                                            (map 'list (lambda (info)
-                                                         (when (some (curry #'binding-slot-info-find-specializer info)
-                                                                     specializers)
-                                                           (first (binding-slot-info-paths info))))
-                                                 binding-slot-infos)))
-                      (key          (mapcar #'specializer-pattern specializers))) ; TODO better key; can't we just use gensym here?
+                      (real-specializers (remove-if (of-type 'augment-pattern-specializer)
+                                                    specializers))
+                      (used-paths (remove nil ; TODO ugly
+                                          (map 'list (lambda (info)
+                                                       (when (some (curry #'binding-slot-info-find-specializer info)
+                                                                   real-specializers)
+                                                         (first (binding-slot-info-paths info))))
+                                               binding-slot-infos)))
+                      (key (mapcar #'specializer-pattern specializers))) ; TODO better key; can't we just use gensym here?
                  (multiple-value-bind (pattern variables)
                      (augment-pattern-for-discriminating-function
                       (specializer-parsed-pattern most-specific-specializer)
@@ -272,12 +299,12 @@
                      (let ((,bindings ,(make-binding-vector variables)))
                        #+no ,@(when *debug*
                                 `((debug-clause-matching
-                                   ,arg ,pattern (list ,@specializers)
+                                   ,pattern (list ,@specializers)
                                    ',binding-slot-infos ',variables ,bindings)))
                        (,(if accept-next-a-g-f-p
                              'make-pattern-generalizer-with-next
                              'make-pattern-generalizer)
-                        '(,@specializers) ',key ,bindings
+                        '(,@real-specializers) ',key ,bindings
                         ,@(when accept-next-a-g-f-p
                             `((funcall (sb-ext:truly-the function ,next-a-g-f) ,arg))))))
                    #+no (debug-clause pattern specializers binding-slot-infos variables form)

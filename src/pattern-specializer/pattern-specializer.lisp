@@ -69,6 +69,9 @@
   (pattern-specializer.optima-extensions::pattern-normalize
    '(:literal :cnf/strict) (specializer-parsed-pattern specializer)))
 
+(defclass augment-pattern-specializer (pattern-specializer)
+  ())
+
 (defclass early-pattern-specializer (pattern-specializer)
   ())
 
