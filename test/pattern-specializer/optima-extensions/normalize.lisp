@@ -76,6 +76,58 @@
      (or (and 1 2) (not (and 1 2)))
      (or 1 2 (and 3 4) (and 5 (or 6 (and 7 (not 8))))))))
 
+
+;; (PATTERN-MORE-SPECIFIC-P (parse-pattern 'x) (parse-pattern '(or x y)))
+;; (PATTERN-MORE-SPECIFIC-P (parse-pattern 'x) (parse-pattern '(and 1 2)))
+;; (PATTERN-MORE-SPECIFIC-P (parse-pattern 'x) (parse-pattern '(not _)))
+;; (PATTERN-SPECIALIZER.OPTIMA-EXTENSIONS::PATTERN-MORE-SPECIFIC-1-P (parse-pattern 'x) (parse-pattern '(not _)))
+;;
+;; (PATTERN-SPECIALIZER.OPTIMA-EXTENSIONS:PATTERN-MORE-SPECIFIC-P
+;;  (parse-pattern '(OR (GUARD IT5057 (TYPEP IT5057 'INTEGER))
+;;                      (NOT (GUARD IT5059 (TYPEP IT5059 'REAL)))))
+;;  (parse-pattern 'OPTIMA::_))
+;;
+;; (PATTERN-SPECIALIZER.OPTIMA-EXTENSIONS::PATTERN-MORE-SPECIFIC-1-P
+;;  (normalize-pattern (parse-pattern '(cons x y)))
+;;  (normalize-pattern (parse-pattern '(and 1 2))))
+;;
+;;
+;; (pattern-more-specific-p (parse-pattern '(CLASS FEZ))
+;;                          (parse-pattern '(CLASS FEZ :BAR 1 :BAZ 1)))
+;;
+;;
+;; (PATTERN-SPECIALIZER.OPTIMA-EXTENSIONS::pattern-more-specific-p
+;;  (parse-pattern ''(1 . 2))
+;;  (parse-pattern '(cons 1 2)))
+;;
+;; (PATTERN-SPECIALIZER.OPTIMA-EXTENSIONS::pattern-more-specific-p
+;;  (parse-pattern '(CONS NIL NIL))
+;;  (parse-pattern '(TYPE (CONS NULL NULL))))
+;;
+;;
+;; (normalize-pattern (parse-pattern '(or '(1 . 2) (not (cons 1 _)))))
+;;
+;; (PATTERN-SPECIALIZER.OPTIMA-EXTENSIONS::pattern-more-specific-p
+;;  (parse-pattern '(CLASS FEZ))
+;;  (parse-pattern '(CLASS FEZ :BAR 1)))
+;;
+;; (normalize-pattern (parse-pattern '(and (or 1 2) 2)))
+;;
+;; (pattern-more-specific-p (parse-pattern '(cons x y))
+;;                          (parse-pattern '(and 1 2)))
+;;
+;; (normalize-pattern (parse-pattern '(or (OR (GUARD IT5057 (TYPEP IT5057 'INTEGER))
+;;                                         (NOT (GUARD IT5059 (TYPEP IT5059 'REAL))))
+;;                                     (not _))))
+;;
+;; (normalize-pattern (parse-pattern '(CONS (AND X (NOT 1)) (NOT (AND 1 (NOT 2))))))
+;; (normalize-pattern (parse-pattern '(CONS (NOT 1) (NOT (AND 1 (NOT 2))))))
+;;
+;; (normalize-pattern (parse-pattern '(and 1 2)))
+;;
+;; (normalize-pattern (parse-pattern '(or (not (and x y)) (and 1 2))))
+;; (normalize-pattern (parse-pattern '(or (and x y) (not (and 1 2)))))
+
 ;; (let ((p (normalize-pattern (optima.core:parse-pattern '(class class
 ;;                                                        (bar (or 4 (not (and 1 (or 5 (not 2))))))
 ;;                                                          (baz (and 6 7)))))))
