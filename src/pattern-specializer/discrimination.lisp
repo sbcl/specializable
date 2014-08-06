@@ -91,51 +91,81 @@
   (mapcar #'path-info-path (specializer-component-%paths component)))
 
 (defun specializer-component-contains-p (component specializer)
-  (some (lambda (component-specializer)
-          (or (eq component-specializer :forthcoming) ; TODO explain
-              (specializer-relation-is-p
-               '(< > =) component-specializer specializer)))
-        (specializer-component-specializers component)))
+  (when-let* ((specializers (specializer-component-specializers component))
+              (test         (rcurry (specializer-relation-is '(< > = /=))
+                                    specializer)))
+    (some test specializers)))
 
-(defun specializer-component-add-specializer (component specializer
-                                              &key paths-only)
+(defun specializer-component-add-specializer (component specializer)
   (with-accessors ((specializers specializer-component-specializers)
                    (paths        specializer-component-%paths))
       component
-    (push (if paths-only :forthcoming specializer) specializers) ; TODO explain
+    (push specializer specializers)
     (mapc-variables-and-paths
      (lambda (name path)
        (declare (ignore name))
        (let* ((path      (path-for-bindings path))
               (path-info (or (find path paths :key #'path-info-path :test #'equal)
                              (let ((info (make-path-info path)))
+                               (assert (not (find info paths))) ; TODO remove
                                (push info paths)
                                info))))
-         (push (if paths-only :forthcoming specializer)
-               (path-info-specializers path-info))))
+         (push specializer (path-info-specializers path-info))))
      (specializer-parsed-pattern specializer))
-    ;; TODO experiment: topological sort
-    (unless paths-only
-      (setf specializers (specializer-transitive-closure
-                          (first specializers) (rest specializers) :down t))))
+    ;; TODO explain
+    (specializer-component-update-graph component))
   component)
 
 (defun specializer-component-remove-specializer (component specializer)
   (with-accessors ((specializers specializer-component-specializers)
                    (paths        specializer-component-%paths))
       component
-    (removef specializers specializer)
-    (mapc-variables-and-paths
-     (lambda (name path)
-       (declare (ignore name))
-       (let* ((path      (path-for-bindings path))
-              (path-info (find path paths :key #'path-info-path :test #'equal)))
-         (assert path-info) ; TODO remove
-         (removef (path-info-specializers path-info) specializer)
-         (when (emptyp (path-info-specializers path-info))
-           (removef paths path-info))))
-     (specializer-parsed-pattern specializer))
-    (values component (emptyp paths))))
+    (flet ((remove-specializer-paths (specializer)
+             (mapc-variables-and-paths
+              (lambda (name path)
+                (declare (ignore name))
+                (let* ((path      (path-for-bindings path))
+                       (path-info (find path paths
+                                        :key  #'path-info-path
+                                        :test #'equal)))
+                  (assert path-info) ; TODO remove
+                  (removef (path-info-specializers path-info) specializer)
+                  (when (emptyp (path-info-specializers path-info))
+                    (removef paths path-info))))
+              (specializer-parsed-pattern specializer))))
+      ;; Remove SPECIALIZER and unreference its paths.
+      (removef specializers specializer)
+      (remove-specializer-paths specializer)
+      ;; Topologically re-sort remaining specializers. If removing
+      ;; SPECIALIZER disconnected the remaining specializers, keep one
+      ;; connected component of specializers and remove the
+      ;; others. The third return value is the list of disconnected
+      ;; specializers. The caller should form a new
+      ;; `specializer-component' instance from these.
+      (if (emptyp specializers)
+          (values component t nil)
+          (let ((disconnected (specializer-component-update-graph component)))
+            (mapc #'remove-specializer-paths disconnected)
+            (values component nil disconnected))))))
+
+(defun specializer-component-update-graph (component)
+  (with-accessors ((specializers specializer-component-specializers)
+                   (paths        specializer-component-%paths))
+      component
+    ;;
+    (let ((specializers* (specializer-transitive-closure
+                          (first specializers) (rest specializers)
+                          :down t)))
+      (prog1
+          (set-difference specializers specializers* :test #'eq)
+        (setf specializers specializers*)))))
+
+(defun specializer-component-merge-into (into-component component)
+  (appendf (specializer-component-specializers into-component)
+           (specializer-component-specializers component))
+  (appendf (specializer-component-%paths into-component)
+           (specializer-component-%paths component))
+  into-component)
 
 ;;; Discriminating function generation
 

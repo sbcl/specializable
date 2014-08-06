@@ -115,7 +115,7 @@
                ;; when the method object is added to GENERIC-FUNCTION.
                (let* ((component (nth-value
                                   1 (required-parameter-info-add-specializer
-                                     parameter-info specializer :paths-only t)))
+                                     parameter-info specializer)))
                       (paths     (specializer-component-%paths component))
                       (bindings  '()))
                  ;; Map over pattern variables (and their paths (with
@@ -137,8 +137,11 @@
                             bindings)))
                   (specializer-parsed-pattern specializer))
                  bindings)))
-      (let* ((specializers/parsed (mapcar (curry #'parse-specializer-using-class generic-function)
-                                          specializers))
+      (let* ((specializers/parsed (let ((*parse-specializer-kind* :early))
+                                    (mapcar (compose
+                                             (curry #'parse-specializer-using-class
+                                                    generic-function))
+                                            specializers)))
              (required-parameters (generic-function-required-parameter-infos
                                    generic-function))
              (binding-var-names   (map-into (make-list (length required-parameters))
@@ -225,57 +228,134 @@
   (declare (type required-parameter-info info)
            (type pattern-specializer specializer))
   (with-accessors ((components required-parameter-info-components)) info
-    (flet ((remove-forthcoming (component)
-             (removef (specializer-component-specializers component) ; TODO more elegant way?
-                      :forthcoming)
-             (dolist (path-info (specializer-component-%paths component))
-               (removef (path-info-specializers path-info) :forthcoming))
-             component))
-      (or (when-let ((containing (mapcar
-                                  #'remove-forthcoming
-                                  (required-parameter-info-components-for
-                                   info specializer))))
-            (destructuring-bind (keep &rest removes) containing
-              (when removes
-                (mapc (curry #'specializer-component-add-specializer keep)
-                      (mappend #'specializer-component-specializers removes))
-                (setf components (set-difference components removes)))
-              keep))
-          (let ((component (make-specializer-component '())))
-            (push component components)
-            component)))))
+    ;; Try to find a suitable component for
+    ;; SPECIALIZER. `required-parameter-info-components-for' uses
+    ;; :forthcoming markers to identify components created for
+    ;; SPECIALIZER.
+    ;;
+    ;; CONTAINING can be:
+    ;;
+    ;; * An empty list if SPECIALIZER does not have any relation to
+    ;;   the specializers in existing components. A new component
+    ;;   containing only SPECIALIZER is created in this case.
+    ;;
+    ;; * A list containing a single component. SPECIALIZER can simply
+    ;;   be added to that component in this case.
+    ;;
+    ;; * A list of components. This happens when the addition of
+    ;;   SPECIALIZER to the graph connects existing components. The
+    ;;   `specializer-component' instances are merged into one to
+    ;;   which SPECIALIZER is added in this case.
+    (or (when-let ((containing (required-parameter-info-components-for
+                                info specializer)))
+          (destructuring-bind (keep &rest removes) containing
+            (when removes ; merge KEEP and REMOVES into KEEP.
+              (reduce #'specializer-component-merge-into removes
+                      :initial-value keep)
+              (setf components (set-difference components removes)))
+            keep))
+        (let ((component (make-specializer-component '())))
+          (push component components)
+          component))))
 
-(defun required-parameter-info-add-specializer (info specializer
-                                                &key paths-only)
+(defun required-parameter-info-add-specializer (info specializer)
   (typecase specializer
     (pattern-specializer
-     (unless paths-only
-       (push specializer (required-parameter-info-pattern-specializers info)))
-     (let ((component (required-parameter-info-ensure-component-for
-                       info specializer)))
-       (specializer-component-add-specializer
-        component specializer :paths-only paths-only)
+     (push specializer (required-parameter-info-pattern-specializers info))
+     (let* ((component (required-parameter-info-ensure-component-for
+                        info specializer))
+            (component (specializer-component-add-specializer
+                        component specializer)))
+
+       ;; TODO remove
+       (assert (length= (when (specializer-component-specializers component)
+                          (specializer-transitive-closure
+                           (first (specializer-component-specializers component))
+                           (rest (specializer-component-specializers component)) :down t))
+                        (specializer-component-specializers component)))
+
        (values info component)))
     (t
      (push specializer
            (required-parameter-info-other-specializers info))
      info)))
 
+;; Find `early-pattern-specializer' instances associated with
+;; SPECIALIZER and replace them with SPECIALIZER. This is necessary
+;; because `defmethod' expansion can only add preliminary
+;; `early-pattern-specializer' instances to the
+;; `required-parameter-info'. A later call to `add-method' has access
+;; to the proper `late-pattern-specializer' instances and calls this
+;; functions to replace the former with the latter.
+(defun required-parameter-info-upgrade-specializer (info specializer)
+  (with-accessors ((specializers required-parameter-info-pattern-specializers)
+                   (components   required-parameter-info-components))
+      info
+    (labels ((my-forthcoming-p (specializer*)
+               (and (typep specializer* 'early-pattern-specializer)
+                    (eq '= (pattern-more-specific-p
+                            (specializer-parsed-pattern specializer*)
+                            (specializer-parsed-pattern specializer)))))
+             (replace-my-forthcoming (specializers)
+               (assert (<= 0 (count-if #'my-forthcoming-p specializers) 1))
+               (substitute-if specializer #'my-forthcoming-p specializers))
+             (replace-in-path-info (info)
+               (with-accessors ((specializers path-info-specializers)) info
+                 (setf specializers (replace-my-forthcoming specializers))))
+             (replace-in-component (component)
+               (with-accessors ((specializers specializer-component-specializers)
+                                (paths        specializer-component-%paths))
+                   component
+                 (setf specializers (replace-my-forthcoming specializers))
+                 (mapc #'replace-in-path-info paths))))
+      (setf specializers (replace-my-forthcoming specializers))
+      (mapc #'replace-in-component components)))
+  ;; binding-slots in INFO contains copies of the `path-info' s
+  ;; already updated via components.
+  info)
+
 (defun required-parameter-info-remove-specializer (info specializer)
-  (typecase specializer
-    (pattern-specializer
-     (removef (required-parameter-info-pattern-specializers info)
-              specializer)
-     (let* ((components (required-parameter-info-components-for
-                         info specializer))
-            (component  (first components))) ; only one binding after assert is gone
-       (assert (length= 1 components)) ; TODO remove
-       (when (nth-value 1 (specializer-component-remove-specializer
-                           component specializer))
-         (removef (required-parameter-info-components info) component))))
-    (t
-     (removef (required-parameter-info-other-specializers info)
-              specializer))))
+  (with-accessors ((specializers required-parameter-info-pattern-specializers))
+      info
+    (typecase specializer
+      (pattern-specializer
+       (removef specializers specializer)
+        ;; Find the component in which SPECIALIZER is contained and
+        ;; remove SPECIALIZER from it.
+        ;;
+        ;; This can lead to the following situations
+        ;;
+        ;; * The component becomes empty and has to be removed.
+        ;;
+        ;; * The specializers remaining in the component are no longer
+        ;;   connected. The component has to be split into multiple
+        ;;   components in this case.
+        ;;
+        ;; * A set of connected specializers remains in the component. No
+        ;;   action besides removing SPECIALIZER from the component is
+        ;;   necessary in this case.
+        (let* ((components (required-parameter-info-components-for
+                            info specializer))
+               (component  (first components))) ; only one binding after assert is gone
+          (assert (length= 1 components))       ; TODO remove
+          (multiple-value-bind (component emptyp disconnected)
+              (specializer-component-remove-specializer
+               component specializer)
+            (cond
+              (emptyp
+               (removef (required-parameter-info-components info) component))
+              (disconnected
+               (setf specializers (set-difference specializers disconnected))
+               (mapc (lambda (specializer)
+                       (mapc (curry #'required-parameter-info-ensure-binding-slot info)
+                             (specializer-component-%paths
+                              (nth-value 1 (required-parameter-info-add-specializer
+                                            info specializer)))))
+                     disconnected))))
+          (values info component)))
+       (t
+        (removef specializers specializer)
+        info))))
 
 (defun required-parameter-info-ensure-binding-slot (info path-info)
   (declare (type path-info path-info))
@@ -311,7 +391,7 @@
 
 (defmethod add-method :after ((generic-function pattern-generic-function)
                               (method           pattern-method))
-  (mapc #'required-parameter-info-add-specializer
+  (mapc #'required-parameter-info-upgrade-specializer
         (generic-function-required-parameter-infos generic-function)
         (method-specializers method)))
 

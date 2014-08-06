@@ -48,10 +48,9 @@
 ;;; `pattern-specializer' class
 
 (defclass pattern-specializer (specializable:extended-specializer)
-  ((pattern            :initarg  :pattern
-                       :reader   specializer-pattern)
-   (parsed-pattern)
-   (accepts-p-function :type     function))
+  ((pattern        :initarg  :pattern
+                   :reader   specializer-pattern)
+   (parsed-pattern))
   (:default-initargs
    :pattern (required-argument :pattern)))
 
@@ -70,9 +69,20 @@
   (pattern-specializer.optima-extensions::pattern-normalize
    '(:literal :cnf/strict) (specializer-parsed-pattern specializer)))
 
+(defclass early-pattern-specializer (pattern-specializer)
+  ())
+
+(defclass late-pattern-specializer (pattern-specializer)
+  ((accepts-p-function :type     function)))
+
+(defvar *parse-specializer-kind* :late)
+
 (specializable:define-extended-specializer pattern (generic-function pattern)
   (declare (ignore generic-function))
-  (make-instance 'pattern-specializer :pattern pattern))
+  (make-instance (ecase *parse-specializer-kind*
+                   (:late  'late-pattern-specializer)
+                   (:early 'early-pattern-specializer))
+                 :pattern pattern))
 
 ;; Parsing is handled by `define-extended-specializer' above
 
@@ -172,21 +182,21 @@
      (specializer pattern-specializer))
   (pattern-type-specifier (specializer-parsed-pattern specializer)))
 
-(defmethod specializer-accepts-p-function ((specializer pattern-specializer))
+(defmethod specializer-accepts-p-function ((specializer late-pattern-specializer))
   (if (slot-boundp specializer 'accepts-p-function)
       (slot-value specializer 'accepts-p-function)
       (setf (slot-value specializer 'accepts-p-function)
             (make-predicate (specializer-parsed-pattern specializer)))))
 
-(defmethod specializable:specializer-accepts-p ((specializer pattern-specializer)
-                                                object)
+(defmethod specializable:specializer-accepts-p
+    ((specializer late-pattern-specializer) object)
   (funcall (sb-ext:truly-the function
              (specializer-accepts-p-function specializer))
            object))
 
 (defmethod specializable:specializer-accepts-generalizer-p
     ((gf specializable:specializable-generic-function)
-     (specializer pattern-specializer)
+     (specializer late-pattern-specializer)
      (generalizer pattern-generalizer))
   (values (find specializer (pattern-generalizer-specializers generalizer)) t))
 
@@ -199,7 +209,7 @@
 
 (defmethod specializable:specializer-accepts-generalizer-p
     ((gf specializable:specializable-generic-function)
-     (specializer pattern-specializer)
+     (specializer late-pattern-specializer)
      (generalizer t))
   (specializer-accepts-generalizer-p-using-pattern
    gf specializer (specializer-parsed-pattern specializer) generalizer))
@@ -208,7 +218,7 @@
 ;; and eql specializers into patterns
 (defmethod specializer-accepts-generalizer-p-using-pattern
     ((gf specializable:specializable-generic-function)
-     (specializer pattern-specializer)
+     (specializer late-pattern-specializer)
      (pattern constant-pattern)
      (generalizer t))
   (specializable:specializer-accepts-generalizer-p
@@ -219,14 +229,14 @@
 
 (defmethod specializer-accepts-generalizer-p-using-pattern
     ((gf specializable:specializable-generic-function)
-     (specializer pattern-specializer)
+     (specializer late-pattern-specializer)
      (pattern variable-pattern)
      (generalizer t))
   (values t t))
 
 (defmethod specializer-accepts-generalizer-p-using-pattern
     ((gf specializable:specializable-generic-function)
-     (specializer pattern-specializer)
+     (specializer late-pattern-specializer)
      (pattern optima.core:class-pattern)
      (generalizer t))
   (multiple-value-bind (result definitivep)
@@ -238,14 +248,14 @@
 
 (defmethod specializer-accepts-generalizer-p-using-pattern
     ((gf specializable:specializable-generic-function)
-     (specializer pattern-specializer)
+     (specializer late-pattern-specializer)
      (pattern optima.core:guard-pattern)
      (generalizer t))
   (values t nil)) ; TODO
 
 (defmethod specializer-accepts-generalizer-p-using-pattern
     ((gf specializable:specializable-generic-function)
-     (specializer pattern-specializer)
+     (specializer late-pattern-specializer)
      (pattern optima.core:not-pattern)
      (generalizer t))
   (multiple-value-bind (result definitivep)
@@ -255,7 +265,7 @@
 
 (defmethod specializer-accepts-generalizer-p-using-pattern
     ((gf specializable:specializable-generic-function)
-     (specializer pattern-specializer)
+     (specializer late-pattern-specializer)
      (pattern and-pattern)
      (generalizer t))
   (let ((definitivep t))
@@ -275,14 +285,14 @@
 
 (defmethod specializer-accepts-generalizer-p-using-pattern
     ((gf specializable:specializable-generic-function)
-     (specializer pattern-specializer)
+     (specializer late-pattern-specializer)
      (pattern optima.core:or-pattern)
      (generalizer t))
   (error "not implemented"))
 
 (defmethod specializer-accepts-generalizer-p-using-pattern
     ((gf specializable:specializable-generic-function)
-     (specializer pattern-specializer)
+     (specializer late-pattern-specializer)
      (pattern optima.core:cons-pattern)
      (generalizer t))
   (multiple-value-bind (result definitivep) (subtypep generalizer 'cons)
