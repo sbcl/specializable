@@ -262,10 +262,9 @@
   (multiple-value-bind (emf cacheablep)
       (slow-method-lookup gf args generalizers)
     (when cacheablep
-      (let ((keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers)))
-        (if (first-arg-only-special-case-p gf)
-            (setf (gethash (car keys) (emf-table gf)) emf)
-            (setf (gethash keys (emf-table gf)) emf))))
+      (let* ((keys (mapcar (lambda (x) (generalizer-equal-hash-key gf x)) generalizers))
+             (key (if (first-arg-only-special-case-p gf) (car keys) keys)))
+        (setf (gethash key (emf-table gf)) emf)))
     (sb-pcl::invoke-emf emf args)))
 
 (defun compute-effective-method-function (gf methods)
