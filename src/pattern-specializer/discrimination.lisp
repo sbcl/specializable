@@ -291,10 +291,22 @@
                                                          (first (binding-slot-info-paths info))))
                                                binding-slot-infos)))
                       (key (mapcar #'specializer-pattern specializers))) ; TODO better key; can't we just use gensym here?
+
                  (multiple-value-bind (pattern variables)
                      (augment-pattern-for-discriminating-function
                       (specializer-parsed-pattern most-specific-specializer)
                       (mapcar #'path-info-path used-paths))
+
+                   (format t "~A:~%~
+                            ~2@T~A~%~
+                            ~2@T~A~%~
+                            ~2@TAugmented~%~
+                            ~4@T~A~%~
+                            ~4@T~A~%"
+                           'make-generalizer-maker-form
+                           specializers used-paths
+                           pattern variables)
+
                    `(,(unparse-pattern pattern)
                      (let ((,bindings ,(make-binding-vector variables)))
                        #+no ,@(when *debug*
