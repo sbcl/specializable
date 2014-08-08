@@ -21,7 +21,7 @@
     (declare (ignore generic-function))
     (list (%car specializer)))
   (:printer (stream specializer)
-    (princ `(cons ,(%car specializer))  stream)))
+    (princ `(cons ,(%car specializer)) stream)))
 
 (defmethod sb-pcl::same-specializer-p
     ((s1 cons-specializer) (s2 cons-specializer))
