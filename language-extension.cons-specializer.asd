@@ -32,7 +32,9 @@
                  :pathname   "test/cons-specializer"
                  :serial     t
                  :components ((:file       "package")
-                              (:file       "cons-specializer")))))
+                              (:file       "cons-specializer")
+
+                              (:file       "examples")))))
 
 (defmethod perform ((operation test-op)
                     (component (eql (find-system :language-extension.cons-specializer-test))))

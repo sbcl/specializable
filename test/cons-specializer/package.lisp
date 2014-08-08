@@ -11,6 +11,9 @@
 
    #:cons-specializer)
 
+  (:import-from #:specializable-test
+   #:test-example)
+
   (:export
    #:run-tests))
 

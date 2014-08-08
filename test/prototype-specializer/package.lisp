@@ -13,7 +13,9 @@
    #:prototype-specializer)
 
   (:import-from #:specializable-test
-   #:with-specializable-generic-function)
+   #:with-specializable-generic-function
+
+   #:test-example)
 
   (:export
    #:run-tests))

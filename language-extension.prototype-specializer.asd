@@ -33,7 +33,9 @@
                  :pathname   "test/prototype-specializer"
                  :serial     t
                  :components ((:file       "package")
-                              (:file       "prototype-specializer")))))
+                              (:file       "prototype-specializer")
+
+                              (:file       "examples")))))
 
 (defmethod perform ((operation test-op)
                     (component (eql (find-system :language-extension.prototype-specializer-test))))

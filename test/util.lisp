@@ -6,6 +6,8 @@
 
 (cl:in-package #:specializable-test)
 
+;;; Utilities for defining specializable generic functions
+
 (defmacro define-specializable-generic-function (class name lambda-list
                                                  &rest options)
   (flet ((intercept-option-p (option)
@@ -41,3 +43,20 @@
           (locally (declare (sb-ext::muffle-conditions style-warning)) ; TODO only undefined-function
             ,@body))
      (fmakunbound ',name)))
+
+;;; Utilities for testing example files
+
+(defun test-example (relative-pathname &optional (system :specializable))
+  (let ((pathname (asdf:system-relative-pathname
+                   system (merge-pathnames relative-pathname "examples/")))
+        (phase))
+    (handler-bind
+        ((sb-kernel:redefinition-warning #'muffle-warning)
+         ((or error warning)
+          (lambda (condition)
+            (fail "~@<~Aing ~S signaled ~S:~@:_~A~@:>"
+                  phase pathname (type-of condition) condition))))
+      (setf phase :compile)
+      (finishes (compile-file pathname))
+      (setf phase :load)
+      (finishes (load pathname)))))

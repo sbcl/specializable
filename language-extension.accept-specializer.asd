@@ -34,7 +34,9 @@
                  :pathname   "test/accept-specializer"
                  :serial     t
                  :components ((:file       "package")
-                              (:file       "accept-specializer")))))
+                              (:file       "accept-specializer")
+
+                              (:file       "examples")))))
 
 (defmethod perform ((operation test-op)
                     (component (eql (find-system :language-extension.accept-specializer-test))))

@@ -48,7 +48,9 @@
                  :serial t
                  :components ((:file       "package")
                               (:file       "util")
-                              (:file       "specializable")))) )
+                              (:file       "specializable")
+
+                              (:file       "examples")))) )
 
 (defmethod perform ((operation test-op) (component (eql (find-system :specializable-test))))
   (uiop:symbol-call "SPECIALIZABLE-TEST" "RUN-TESTS"))

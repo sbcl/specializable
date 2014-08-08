@@ -15,7 +15,9 @@
   ;; Test utilities
   (:export
    #:define-specializable-generic-function
-   #:with-specializable-generic-function)
+   #:with-specializable-generic-function
+
+   #:test-example)
 
   ;; Test execution protocol
   (:export
