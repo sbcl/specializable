@@ -4,7 +4,7 @@
 #+KEYWORDS:    common lisp, clos, mop, amop, specializer, generalizer
 #+LANGUAGE:    en
 
-* STARTED Introduction
+* Introduction
   The =specializable= system extends CLOS (the Common Lisp Object
   System) and its meta-object protocol with a form of generalized
   dispatch by introducing a new =generalizer= meta-object.
@@ -35,7 +35,7 @@
   A detailed description can be found in the associated
   publications [fn:1][fn:2].
 
-* STARTED Provided Specializers
+* Provided Specializers
 
   Based on this extension, the following kinds =specializer= s are
   also provided:
