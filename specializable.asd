@@ -22,6 +22,7 @@
 
                               (:file       "package")
                               (:file       "protocol")
+                              (:file       "syntax")
                               (:file       "specializable"))))
   :in-order-to ((test-op (test-op :specializable-test))))
 
@@ -48,6 +49,7 @@
                  :serial t
                  :components ((:file       "package")
                               (:file       "util")
+                              (:file       "syntax")
                               (:file       "specializable")
 
                               (:file       "examples")))) )

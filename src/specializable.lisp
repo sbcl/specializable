@@ -5,47 +5,21 @@
 
 (cl:in-package "SPECIALIZABLE")
 
-;;; Extended specializer syntax
-
-(defun extended-specializer-name-p (name)
-  (and (symbolp name) (get name 'extended-specializer-parser)))
-
-(deftype extended-specializer-name ()
-  `(satisfies extended-specializer-name-p))
-
-(defmacro define-extended-specializer (name (generic-function-var &rest args)
-                                       &body body)
-  ;; FIXME: unparser
-  `(setf (get ',name 'extended-specializer-parser)
-         (lambda (,generic-function-var ,@args)
-           ,@body)))
-
-;; doesn't work, because we'd have to dump GF into the fasl for the macro
-;; expansion
-;;; (defun intern-extended-specializer (gf sname)
-;;;   (destructuring-bind (kind &rest args) sname
-;;;     (setf (gethash sname (generic-function-extended-specializers gf))
-;;;       (apply (or (get kind 'extended-specializer-parser)
-;;;                  (error "not declared as an extended specializer name: ~A"
-;;;                         kind))
-;;;              gf
-;;;              args))))
-
-(defun make-extended-specializer (specializer-specifier)
-  (declare (type (cons symbol) specializer-specifier))
-  (destructuring-bind (name &rest args) specializer-specifier
-    (apply (or (get name 'extended-specializer-parser)
-               (error "not declared as an extended specializer name: ~A"
-                      name))
-           '|This is not a generic function| ; FIXME, see comment above
-           args)))
-
 ;;; EXTENDED-SPECIALIZER protocol class
 
 (defclass extended-specializer (sb-mop:specializer)
   ;; FIXME: this doesn't actually do quite what I wanted.
   ((direct-methods-table :allocation :class
                          :initform nil :accessor direct-methods-table)))
+
+(defmethod print-object ((object extended-specializer) stream)
+  (let ((syntax-name (specializer-syntax-name object)))
+    (if (extended-specializer-name-p syntax-name)
+        (let ((printer (extended-specializer-syntax-printer
+                        (find-extended-specializer-syntax syntax-name))))
+          (print-unreadable-object (object stream :type t :identity t)
+            (funcall printer stream object)))
+        (call-next-method))))
 
 (defmethod sb-mop:add-direct-method ((specializer extended-specializer) method)
   (let* ((table (direct-methods-table specializer))
@@ -94,8 +68,17 @@
   specializer-name)
 (defmethod sb-pcl:parse-specializer-using-class
     ((gf specializable-generic-function) (specializer-name cons))
-  (if (typep specializer-name '(cons extended-specializer-name))
-      (make-extended-specializer specializer-name)
+  (if (extended-specializer-name-p (car specializer-name))
+      (make-extended-specializer gf specializer-name)
+      (call-next-method)))
+
+(defmethod sb-pcl:unparse-specializer-using-class
+    ((gf specializable-generic-function) (specializer extended-specializer))
+  (or (let ((syntax-name (specializer-syntax-name specializer)))
+        (when (extended-specializer-name-p syntax-name)
+          (let ((unparser (extended-specializer-syntax-unparser
+                           (find-extended-specializer-syntax syntax-name))))
+            `(,syntax-name ,@(funcall unparser gf specializer)))))
       (call-next-method)))
 
 (defmethod sb-pcl:make-specializer-form-using-class or
@@ -104,7 +87,9 @@
      (specializer-name cons)
      environment)
   (when (extended-specializer-name-p (car specializer-name))
-    `(make-extended-specializer ',specializer-name)))
+    `(make-extended-specializer
+      (sb-pcl:class-prototype (find-class ',(type-of proto-generic-function)))
+      ',specializer-name)))
 
 ;;; from Closette, changed to use some SBCL functions:
 

@@ -1,4 +1,4 @@
-#+TITLE:       README
+#+TITLE:       Specializable - User-extensible Specializers for Common Lisp
 #+AUTHOR:      Christophe Rhodes \and Jan Moringen
 #+DESCRIPTION: Extended CLOS specializers - SBCL only
 #+KEYWORDS:    common lisp, clos, mop, amop, specializer, generalizer
@@ -22,7 +22,7 @@
 
   where =SPECIALIZER-KIND= is a symbol designating the new specializer
   kind and =SPECIALIZER-SYNTAX= is a form which adheres to the
-  respective syntax and parametrizes the specializer.
+  respective syntax and parametrizes the specializer[fn:1].
 
   More concretely, assuming a new specializer kind designated by
   =cl:cons=, the above example would become:
@@ -33,7 +33,7 @@
   #+END_SRC
 
   A detailed description can be found in the associated
-  publications [fn:1][fn:2].
+  publications [fn:2][fn:3].
 
 * Provided Specializers
 
@@ -48,11 +48,18 @@
 
 * Footnotes
 
-[fn:1] Rhodes, C., Moringen, J., Lichteblau, D.: Generalizers: New
+[fn:1] While the syntax =(SPECIALIZER-KIND &rest SPECIALIZER-SYNTAX)=
+       is the common case and benefits from supporting machinery such
+       as =specializable:define-extended-specializer-syntax=, it is
+       also possible to define new kinds of specializers with entirely
+       different syntax. See [[file:src/prototype-specializer]] for an
+       example.
+
+[fn:2] Rhodes, C., Moringen, J., Lichteblau, D.: Generalizers: New
        Metaobjects for Generalized Dispatch (2014). Available at
        http://arxiv.org/abs/1403.2765.
 
-[fn:2] Newton, J., Rhodes, C.: Custom Specializers in Object-Oriented
+[fn:3] Newton, J., Rhodes, C.: Custom Specializers in Object-Oriented
        Lisp (2008). Available at
        http://www.jucs.org/jucs_14_20/custom_specializers_in_object.
 

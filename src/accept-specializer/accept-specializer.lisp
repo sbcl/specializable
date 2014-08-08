@@ -127,16 +127,20 @@
   ()
   (:metaclass sb-mop:funcallable-standard-class))
 
-(define-extended-specializer accept (gf arg)
-  (declare (ignore gf))
-  (make-instance 'accept-specializer :media-type arg))
-(defmethod sb-pcl:unparse-specializer-using-class
-    ((gf accept-generic-function) (specializer accept-specializer))
-  `(accept ,(media-type specializer)))
+(define-extended-specializer-syntax accept
+  (:class accept-specializer)
+  (:parser (generic-function media-type)
+    (declare (ignore generic-function))
+    (make-instance 'accept-specializer :media-type media-type))
+  (:unparser (generic-function specializer)
+    (declare (ignore generic-function))
+    (list (media-type specializer)))
+  (:printer (stream specializer)
+    (princ (media-type specializer) stream)))
+
 (defmethod sb-pcl::same-specializer-p
     ((s1 accept-specializer) (s2 accept-specializer))
   (string= (media-type s1) (media-type s2)))
-
 
 (defmethod generalizer-equal-hash-key
     ((gf accept-generic-function) (g accept-generalizer))

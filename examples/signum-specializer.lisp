@@ -19,12 +19,14 @@
     ()
     (:metaclass sb-mop:funcallable-standard-class))
 
-  (define-extended-specializer signum (gf signum)
-    (declare (ignore gf))
-    (make-instance 'signum-specializer :signum signum))
-  (defmethod sb-pcl:unparse-specializer-using-class
-      ((gf signum-generic-function) (specializer signum-specializer))
-    `(signum ,(%signum specializer))))
+  (define-extended-specializer-syntax signum
+    (:class signum-specializer)
+    (:parser (generic-function signum)
+      (declare (ignore generic-function))
+      (make-instance 'signum-specializer :signum signum))
+    (:unparser (generic-function specializer)
+      (declare (ignore generic-function))
+      (list (%signum specializer)))))
 
 (defmethod sb-pcl::same-specializer-p
     ((s1 signum-specializer) (s2 signum-specializer))

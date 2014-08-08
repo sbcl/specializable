@@ -12,11 +12,17 @@
   ()
   (:metaclass sb-mop:funcallable-standard-class))
 
-(define-extended-specializer cons (gf car)
-  (make-instance 'cons-specializer :car car))
-(defmethod sb-pcl:unparse-specializer-using-class
-    ((gf cons-generic-function) (specializer cons-specializer))
-  `(cons ,(%car specializer)))
+(define-extended-specializer-syntax cons
+  (:class cons-specializer)
+  (:parser (generic-function car)
+    (declare (ignore generic-function))
+    (make-instance 'cons-specializer :car car))
+  (:unparser (generic-function specializer)
+    (declare (ignore generic-function))
+    (list (%car specializer)))
+  (:printer (stream specializer)
+    (princ `(cons ,(%car specializer))  stream)))
+
 (defmethod sb-pcl::same-specializer-p
     ((s1 cons-specializer) (s2 cons-specializer))
   (eql (%car s1) (%car s2)))

@@ -180,6 +180,12 @@
      environment)
   `(make-instance 'late-prototype-specializer :object ,specializer-name))
 
+;; Note that this cannot use DEFINE-EXTENDED-SPECIALIZER-SYNTAX
+;; because protocol specializer specifiers are not of the form
+;;
+;;   (SPECIALIZER-KIND &rest ARGS)
+;;
+;; .
 (defmethod sb-pcl:parse-specializer-using-class
     ((gf prototype-generic-function) (name symbol))
   (make-instance 'early-prototype-specializer :object name))
