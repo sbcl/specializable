@@ -266,14 +266,6 @@
                         info specializer))
             (component (specializer-component-add-specializer
                         component specializer)))
-
-       ;; TODO remove
-       (assert (length= (when (specializer-component-specializers component)
-                          (specializer-transitive-closure
-                           (first (specializer-component-specializers component))
-                           (rest (specializer-component-specializers component)) :down t))
-                        (specializer-component-specializers component)))
-
        (values info component)))
     (t
      (push specializer

@@ -175,10 +175,20 @@
                    (push augment-specializer specializers)
                    (go :restart)))))))
 
+    ;; Rebuild a connected component of specializers, starting with an
+    ;; arbitrary one. Two things to note:
     ;;
+    ;; 1. SPECIALIZERS may not form a single connected component
+    ;;    (e.g. after a specializer has been removed).
+    ;;
+    ;; 2. Paths consisting only of < and > relations are sufficient to
+    ;;    describe components since /= relations have been dealt with
+    ;;    in the above augmentation step.
+    ;;
+    ;; Return a list of specializers that are no longer reachable from
+    ;; the computed connected component (see 1.).
     (let ((specializers* (specializer-transitive-closure
-                          (first specializers) (rest specializers)
-                          :down t)))
+                          specializers :start (list (first specializers)))))
       (prog1
           (set-difference specializers specializers* :test #'eq)
         (setf specializers specializers*)))))
