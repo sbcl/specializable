@@ -24,56 +24,52 @@
     :in :pattern-specializer)
 (in-suite :pattern-specializer.make-method-lambda-using-specializers)
 
+(defun exec-check-name-clash-test-cases (name specs)
+  (mapc (lambda (spec)
+          (destructuring-bind (lambda-list ignore expected) spec
+           (flet ((do-it ()
+                    (eval `(defmethod ,name ,lambda-list
+                             (declare (ignore ,@ignore))))))
+             (case expected
+               (pattern-variable-name-error
+                (signals pattern-variable-name-error (do-it)))
+               (t
+                (finishes (do-it)))))))
+        specs))
+
+(defmacro check-name-clash-test-cases (name &body specs)
+  `(exec-check-name-clash-test-cases
+    ',name '(,@specs)))
+
 (test check-name-clash.required
   "Test name clashes between pattern variables and required
    parameters."
 
   (with-pattern-generic-function (check-name-clash.required (a))
-
-    (finishes
-      (eval '(defmethod check-name-clash.required ((a (pattern b)))
-              (declare (ignore b)))))
-    (signals pattern-variable-name-error
-      (eval '(defmethod check-name-clash.required ((a (pattern a)))
-              (declare (ignore a)))))))
+    (check-name-clash-test-cases check-name-clash.required
+      (((a (pattern b))) (b) t)
+      (((a (pattern a))) (a) pattern-variable-name-error))))
 
 (test check-name-clash.optional
   "Test name clashes between pattern variables and optional
    parameters."
 
   (with-pattern-generic-function (check-name-clash.optional (a &optional b))
-
-    (signals pattern-variable-name-error
-      (eval '(defmethod check-name-clash.optional ((a (pattern b))
-                                                   &optional b)
-              (declare (ignore a b)))))
-    (signals pattern-variable-name-error
-      (eval '(defmethod check-name-clash.optional ((a (pattern bs))
-                                                   &optional (b nil bs))
-              (declare (ignore a b bs)))))))
+    (check-name-clash-test-cases check-name-clash.optional
+      (((a (pattern b)) &optional c)           (b c)  t)
+      (((a (pattern b)) &optional b)           (b)    pattern-variable-name-error)
+      (((a (pattern bs)) &optional (b nil bs)) (b bs) pattern-variable-name-error))))
 
 (test check-name-clash.key
   "Test name clashes between pattern variables and keyword
    parameters."
 
   (with-pattern-generic-function (check-name-clash.key (a &key k))
-
-    (finishes
-      (eval '(defmethod check-name-clash.key ((a (pattern b))
-                                              &key k)
-              (declare (ignore b k)))))
-    (finishes
-      (eval '(defmethod check-name-clash.key ((a (pattern k))
-                                              &key ((:k no-problem)))
-              (declare (ignore k no-problem)))))
-    (signals pattern-variable-name-error
-      (eval '(defmethod check-name-clash.key ((a (pattern k))
-                                              &key k)
-              (declare (ignore k)))))
-    (signals pattern-variable-name-error
-      (eval '(defmethod check-name-clash.key ((a (pattern k))
-                                              &key ((:k no-problem) nil k))
-              (declare (ignore k no-problem)))))))
+    (check-name-clash-test-cases check-name-clash.key
+      (((a (pattern b)) &key k)                       (b k)          t)
+      (((a (pattern k)) &key ((:k no-problem)))       (k no-problem) t)
+      (((a (pattern k)) &key k)                       (k)            pattern-variable-name-error)
+      (((a (pattern k)) &key ((:k no-problem) nil k)) (k no-problem) pattern-variable-name-error))))
 
 (test check-name-clash.rest
   "Test name clashes between pattern variables and rest parameters."
@@ -82,10 +78,10 @@
 
     (finishes
       (eval '(defmethod check-name-clash.rest ((a (pattern b)) &rest r)
-              (declare (ignore a b r)))))
+               (declare (ignore a b r)))))
     (signals pattern-variable-name-error
       (eval '(defmethod check-name-clash.rest ((a (pattern r)) &rest r)
-              (declare (ignore a r)))))))
+               (declare (ignore a r)))))))
 
 (test check-name-clash.pattern
   "Test name clashes between pattern variables in different
@@ -96,11 +92,11 @@
     (signals pattern-variable-name-error
       (eval '(defmethod check-name-clash.pattern ((a (pattern (cons c c)))
                                                   b)
-              (declare (ignore a b c)))))
+               (declare (ignore a b c)))))
     (signals pattern-variable-name-error
       (eval '(defmethod check-name-clash.pattern ((a (pattern c))
                                                   (b (pattern (cons c d))))
-              (declare (ignore a c b d)))))))
+               (declare (ignore a c b d)))))))
 
 ;;; Next method tests
 
