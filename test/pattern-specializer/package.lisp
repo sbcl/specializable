@@ -11,9 +11,7 @@
 
    #:fiveam
 
-   #:pattern-specializer
-
-   #:specializable-test)
+   #:pattern-specializer)
 
   (:import-from #:optima
    #:guard)
@@ -32,6 +30,11 @@
    #:required-parameter-info-remove-specializer
 
    #:required-parameter-info-ensure-binding-slot)
+
+  (:import-from #:specializable-test
+   #:with-specializable-generic-function
+
+   #:test-example)
 
   (:export
    #:run-tests))
