@@ -71,7 +71,11 @@
                               (:file       "type-interoperation")
                               (:file       "transform")
                               (:file       "normalize")
-                              (:file       "order")))))
+                              (:file       "order")))
+
+                (:file       "examples"
+                 :pathname   "test/pattern-specializer/examples"
+                 :depends-on ("pattern-specializer"))))
 
 (defmethod perform ((operation test-op)
                     (component (eql (find-system :language-extension.pattern-specializer-test))))
