@@ -37,8 +37,8 @@
 
 * Provided Specializers
 
-  Based on this extension, the following kinds =specializer= s are
-  also provided:
+  Based on this extension, the following kinds of =specializer= s are
+  provided as seperate [[http://common-lisp.net/project/asdf][ASDF]] systems:
   + =cons-specializer= for dispatch based on the contents of the =car=
     slot of =cons= objects. See [[file:examples/cons-specializer.lisp]].
   + =accept-specializer= for dispatch based on HTTP content
