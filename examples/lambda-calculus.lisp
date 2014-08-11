@@ -23,11 +23,11 @@
 
 ;;; Syntax
 ;;;
-;;;        ,- app   ,- const
-;;;       /        /
-;;; term ---- val ---- abs
-;;;       \
-;;;        `- var
+;;;       ┌― app  ┌― const
+;;;       │       │
+;;; term ―┼― val ―┴― abs
+;;;       │
+;;;       └― var
 
 (defstruct term) ; abstract
 
@@ -97,9 +97,9 @@
 
 ;; Reduce function to value
 ;;
-;;      t_1 -> t_1'
-;; ―――――――――――――――――――――
-;;  t_1 t_2 -> t_1' t_2
+;;      t₁ -> t₁'
+;; ―――――――――――――――――
+;;  t₁ t₂ -> t₁' t₂
 ;;
 ;; [1 Page 72; Figure 5.3]
 (defmethod eval1 ((term (pattern (app fun arg))))
@@ -107,9 +107,9 @@
 
 ;; Reduce argument to value
 ;;
-;;      t_2 -> t_2'
-;; ―――――――――――――――――――――
-;;  v_1 t_2 -> v_1 t_2'
+;;      t₂ -> t₂'
+;; ―――――――――――――――――
+;;  v₁ t₂ -> v₁ t₂'
 ;;
 ;; [1 Page 72; Figure 5.3]
 (defmethod eval1 ((term (pattern (app (fun (and fun (val))) arg))))
@@ -117,7 +117,7 @@
 
 ;; Application
 ;;
-;; (λx.t_{12}) v_2 -> [x -> v_2] t_{12}
+;; (λx.t₁₂) v₂ -> [x -> v₂] t₁₂
 ;;
 ;; [1 Page 72; Figure 5.3]
 (defmethod eval1 ((term (pattern (app (fun (abs var body)) (arg (and arg (val)))))))
