@@ -46,7 +46,10 @@
   + =prototype-specializer= for dispatch on prototype objects. See
     [[file:examples/prototype-specializer.lisp]]
   + =pattern-specializer= for dispatch based on [[https://github.com/m2ym/optima][Optima]] patterns. See
-    [[file:src/pattern-specializer/README.org]].
+    [[file:src/pattern-specializer/README.org]] and
+    + [[file:examples/lambda-calculus.lisp]]
+    + [[file:examples/simplifier.lisp]]
+    + [[file:examples/code-walker.lisp]]
 
 * Footnotes
 
