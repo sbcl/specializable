@@ -349,10 +349,17 @@
                ((> /= //) (return nil)))))))
 
 (defmethod specializer<
-    ((gf specializable-generic-function) (s1 class) (s2 class) (generalizer class))
+    ((gf specializable-generic-function)
+     (s1 class)
+     (s2 class)
+     (generalizer class))
   (let ((cpl))
     (flet ((cpl ()
-             (or cpl (setf cpl (sb-mop:class-precedence-list generalizer)))))
+             (or cpl
+                 (progn
+                   (unless (sb-mop:class-finalized-p generalizer)
+                     (sb-mop:finalize-inheritance generalizer))
+                   (setf cpl (sb-mop:class-precedence-list generalizer))))))
       (cond
         ((eq s1 s2)
          '=)
