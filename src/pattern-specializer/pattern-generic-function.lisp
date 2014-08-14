@@ -258,6 +258,8 @@
           (push component components)
           component))))
 
+;; TODO generic function with methods for {early,late}-pattern-specializer and everything else
+;; late-pattern-specializer method will be identical to ...-upgrade-specializer
 (defun required-parameter-info-add-specializer (info specializer)
   (typecase specializer
     (pattern-specializer
@@ -268,6 +270,7 @@
                         component specializer)))
        (values info component)))
     (t
+     (assert (not (find specializer (required-parameter-info-other-specializers info))))
      (push specializer
            (required-parameter-info-other-specializers info))
      info)))
@@ -280,6 +283,9 @@
 ;; to the proper `late-pattern-specializer' instances and calls this
 ;; functions to replace the former with the latter.
 (defun required-parameter-info-upgrade-specializer (info specializer)
+  (unless (typep specializer 'late-pattern-specializer)
+    (return-from required-parameter-info-upgrade-specializer info))
+
   (with-accessors ((specializers required-parameter-info-pattern-specializers)
                    (components   required-parameter-info-components))
       info
@@ -346,7 +352,7 @@
                      disconnected))))
           (values info component)))
        (t
-        (removef specializers specializer)
+        (removef specializers specializer :test #'eq)
         info))))
 
 (defun required-parameter-info-ensure-binding-slot (info path-info)
@@ -383,7 +389,12 @@
 
 (defmethod add-method :after ((generic-function pattern-generic-function)
                               (method           pattern-method))
-  (mapc #'required-parameter-info-upgrade-specializer
+  (mapc (lambda (info specializer)
+          (typecase specializer
+            (late-pattern-specializer
+             (required-parameter-info-upgrade-specializer info specializer))
+            (t
+             (required-parameter-info-add-specializer info specializer))))
         (generic-function-required-parameter-infos generic-function)
         (method-specializers method)))
 
@@ -405,16 +416,13 @@
                (let* ((next (when accepts-next-method-p (call-next-method))))
                  (setf cell (if accepts-next-method-p
                                 (lambda (object)
-                                  (or (when-let ((generalizer
-                                                  (funcall (sb-ext:truly-the function maker) object next)))
-                                        (debug-generalizer/match generalizer)
-                                        generalizer)
-                                      (when-let ((generalizer
-                                                  (funcall (sb-ext:truly-the function next) object)))
-                                        (debug-generalizer/next generalizer)
-                                        generalizer)))
+                                  (or (debug-generalizer/match
+                                       (funcall (sb-ext:truly-the function maker) object next))
+                                      (debug-generalizer/next
+                                       (funcall (sb-ext:truly-the function next) object))))
                                 (lambda (object)
-                                  (funcall (sb-ext:truly-the function maker) object))))))))
+                                  (debug-generalizer/match
+                                   (funcall (sb-ext:truly-the function maker) object)))))))))
       (setf cell (lambda (object)
                    (install)
                    (funcall cell object)))

@@ -57,17 +57,19 @@
 ;;; Literal normalization
 ;;;
 ;;; Constant
-;;;   '(x . y)            => (cons x y)
+;;;   '(X . Y)            => (cons X Y)
 ;;;
 ;;; Cons
-;;;   (cons x y)          => (and (cons x _) (cons _ y))
+;;;   (cons X Y)          => (and (cons X _) (cons _ Y))
+;;;   (cons (or X Y) Z)   => (or (cons X Z) (cons Y Z))
 ;;;
 ;;; Class
-;;;   (class foo x y)     => (and (class foo x) (class foo y))
+;;;   (class NAME X Y)    => (and (class NAME X) (class NAME Y))
 ;;;
 ;;; Guard
-;;;   (type (cons x y))   => (cons (type x) (type y))
-;;;   (guard x (consp x)) => (cons _ _)
+;;;   (type (cons X Y))   => (cons (type X) (type Y))
+;;;   (type (member X Y)) => (or X Y)
+;;;   (guard X (consp X)) => (cons _ _)
 
 (defmethod pattern-normalize-1 ((form    (eql :literal))
                                 (pattern constant-pattern))
@@ -96,6 +98,10 @@
          (make-and-pattern (make-cons-pattern (first subpatterns) *top-pattern*)
                            (make-cons-pattern *top-pattern* (second subpatterns)))))
 
+      ;; (cons (or A B) C) => (and (cons _ _) (or (cons A C) (cons B C)))
+      ;;
+      ;; TODO injecting (cons _ _) is probably only needed for (cons
+      ;;      (not A) B), not in general?
       ((when-let* ((subpattern (find-if #'recursing-complex-pattern-p subpatterns)))
          (make-and-pattern
           (make-cons-pattern *top-pattern* *top-pattern*)
@@ -142,6 +148,8 @@
 (defmethod pattern-normalize-1 ((form    (eql :literal))
                                 (pattern guard-pattern))
   (cond
+
+    ;; (type VAR TYPE)
     ((when-let ((type (guard-pattern-maybe-type pattern)))
        (flet ((constant (thing)
                 (if (symbolp thing)
@@ -168,6 +176,8 @@
             (parse-pattern `(guard it (,predicate it))))
            ((list* (and operator (or 'or 'and 'not)) types)
             (parse-pattern `(,operator ,@(mapcar #'maybe-type types))))))))
+
+    ;; (guard VAR (PREDICATE variable))
     ((when-let ((predicate (guard-pattern-maybe-predicate pattern)))
        (case predicate
          (consp (parse-pattern `(cons _ _))))))))

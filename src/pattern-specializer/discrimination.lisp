@@ -208,8 +208,8 @@
      (PATH NAME POSITION)
 
    where PATH is "
-  (format t "~S~%~{| ~S~%~}"
-          'augment-pattern-for-discriminating-function paths)
+  (debug-augment-pattern-for-discriminating-function pattern paths)
+
   (let ((variables '()))
     (flet ((maybe-add-entry (name position)
              #+no (if (find position variables :test #'= :key #'third)
@@ -264,7 +264,11 @@
 ;;
 ;; The forms next-a-g-f-related forms are only generated if
 ;; ACCEPT-NEXT-A-G-F-P is true.
-(defun make-generalizer-maker-form (components binding-slot-infos accept-next-a-g-f-p)
+(defun make-generalizer-maker-form (components binding-slot-infos
+                                    accept-next-a-g-f-p)
+  (debug-make-generalizer-maker-form
+   components binding-slot-infos accept-next-a-g-f-p)
+
   (with-unique-names (arg next-a-g-f bindings)
     (labels ((make-binding-vector (variables) ; TODO separate function?
                (when (emptyp variables)
@@ -307,30 +311,21 @@
                       (specializer-parsed-pattern most-specific-specializer)
                       (mapcar #'path-info-path used-paths))
 
-                   (format t "~A:~%~
-                            ~2@T~A~%~
-                            ~2@T~A~%~
-                            ~2@TAugmented~%~
-                            ~4@T~A~%~
-                            ~4@T~A~%"
-                           'make-generalizer-maker-form
-                           specializers used-paths
-                           pattern variables)
+                   (debug-make-generalizer-maker-form/clause
+                    `(,(unparse-pattern pattern)
+                       (let ((,bindings ,(make-binding-vector variables)))
+                         #+no ,@(when *debug*
+                                      `((debug-clause-matching
+                                         ,pattern (list ,@specializers)
+                                         ',binding-slot-infos ',variables ,bindings)))
+                         (,(if accept-next-a-g-f-p
+                               'make-pattern-generalizer-with-next
+                               'make-pattern-generalizer)
+                           '(,@real-specializers) ',key ,bindings
+                           ,@(when accept-next-a-g-f-p
+                                   `((funcall (sb-ext:truly-the function ,next-a-g-f) ,arg))))))
+                    specializers binding-slot-infos variables pattern))))
 
-                   `(,(unparse-pattern pattern)
-                     (let ((,bindings ,(make-binding-vector variables)))
-                       #+no ,@(when *debug*
-                                `((debug-clause-matching
-                                   ,pattern (list ,@specializers)
-                                   ',binding-slot-infos ',variables ,bindings)))
-                       (,(if accept-next-a-g-f-p
-                             'make-pattern-generalizer-with-next
-                             'make-pattern-generalizer)
-                        '(,@real-specializers) ',key ,bindings
-                        ,@(when accept-next-a-g-f-p
-                            `((funcall (sb-ext:truly-the function ,next-a-g-f) ,arg))))))
-                   #+no (debug-clause pattern specializers binding-slot-infos variables form)
-                   )))
              (make-component-clauses (component)
                "Return a list of `optima:match' clauses each of which
                 handles one of the specializers in COMPONENT."
@@ -341,11 +336,11 @@
       `(lambda (,arg ,@(when accept-next-a-g-f-p `(,next-a-g-f)))
          ,@(when accept-next-a-g-f-p
              `((declare (type function ,next-a-g-f))))
-         (debug-try-match ,arg)
+         (debug-try-match ,arg ,(when accept-next-a-g-f-p t nil))
          (match ,arg
            ,@(mappend #'make-component-clauses components)
            (otherwise
-            (debug-no-match)
+            ,@(unless accept-next-a-g-f-p `((debug-no-match)))
             nil))))))
 
 (defun make-generalizer-maker (parameter)

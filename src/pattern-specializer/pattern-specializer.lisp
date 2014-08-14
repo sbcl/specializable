@@ -106,6 +106,7 @@
 
 ;;; Equality and ordering
 
+;; TODO remove?
 (defmethod sb-pcl::same-specializer-p ((specializer1 pattern-specializer)
                                        (specializer2 pattern-specializer))
   (let ((pattern1 (specializer-parsed-pattern specializer1))
@@ -122,55 +123,41 @@
   (pattern-more-specific-p (specializer-parsed-pattern specializer1)
                            (specializer-parsed-pattern specializer2)))
 
-;; TODO necessary?
 (defmethod specializable:specializer<
     ((generic-function specializable:specializable-generic-function)
-     (specializer1 t)
+     (specializer1 sb-pcl:specializer)
      (specializer2 pattern-specializer)
      (generalizer t))
-  '/=)
+  (pattern-specializer.optima-extensions::compare-types
+   (specializer-type-specifier generic-function (sb-pcl:class-prototype (find-class 'standard-method)) specializer1)
+   (specializer-type-specifier generic-function (sb-pcl:class-prototype (find-class 'standard-method)) specializer2))) ; TODO correct?
 
-;; TODO necessary?
 (defmethod specializable:specializer<
     ((generic-function specializable:specializable-generic-function)
      (specializer1 pattern-specializer)
-     (specializer2 t)
+     (specializer2 sb-pcl:specializer)
      (generalizer t))
-  '/=)
-
-(defmethod specializable:specializer<
-    ((generic-function specializable:specializable-generic-function)
-     (specializer1 class)
-     (specializer2 pattern-specializer)
-     (generalizer t))
-  (multiple-value-bind (result definitivep)
-      (specializable:specializer-accepts-generalizer-p
-       generic-function specializer2 specializer1)
-    (cond
-      ((and result definitivep) '<)
-      (result                   '>)
-      (t                        '/=)))) ; TODO correct?
+  (multiple-value-bind (result definitivep) ; TODO does not return second value. oops
+      (specializable:specializer<
+       generic-function specializer2 specializer1 generalizer)
+    (values (specializable:invert-specializer<-relation result)
+            definitivep)))
 
 ;; TODO can this be avoided? does it make sense?
 (defmethod specializable:specializer<
     ((generic-function specializable:specializable-generic-function)
-     (specializer1 class)
-     (specializer2 class)
+     (specializer1 sb-pcl:specializer)
+     (specializer2 sb-pcl:specializer)
      (generalizer pattern-generalizer-with-next))
   (let ((next (pattern-generalizer-with-next-next generalizer)))
     (cond
-      ((typep next 'class)
-       (specializable:specializer< generic-function specializer1 specializer2 next))
-      ((multiple-value-bind (result1 definitivep1)
-           (subtypep specializer1 specializer2)
-         (multiple-value-bind (result2 definitivep2)
-             (subtypep specializer2 specializer1)
-           (cond
-             ((not (and definitivep1 definitivep2)))
-             ((and result1 result2) '=)
-             (result1               '>)
-             (result2               '<)
-             (t                     '/=)))))))) ; TODO correct?
+      (next
+       (specializable:specializer<
+        generic-function specializer1 specializer2 next))
+      ((and (typep specializer1 'class) (typep specializer2 'class))
+       (pattern-specializer.optima-extensions::compare-types specializer1 specializer2))
+      (t
+       (call-next-method)))))
 
 ;;; Accepting objects and generalizers
 
@@ -205,7 +192,7 @@
 
 (defmethod specializable:specializer-accepts-generalizer-p
     ((gf specializable:specializable-generic-function)
-     (specializer t)
+     (specializer sb-pcl:specializer)
      (generalizer pattern-generalizer-with-next))
   (specializable:specializer-accepts-generalizer-p
    gf specializer (pattern-generalizer-with-next-next generalizer)))
@@ -213,8 +200,16 @@
 (defmethod specializable:specializer-accepts-generalizer-p
     ((gf specializable:specializable-generic-function)
      (specializer late-pattern-specializer)
-     (generalizer t))
-  (specializer-accepts-generalizer-p-using-pattern
+     (generalizer sb-pcl:specializer))
+  (values
+   (member
+    (pattern-specializer.optima-extensions::compare-types
+     (specializer-type-specifier gf (sb-pcl:class-prototype (find-class 'standard-method)) specializer)
+     (specializer-type-specifier gf (sb-pcl:class-prototype (find-class 'standard-method)) generalizer))
+    '(> =) :test #'eq)
+   t ; TODO
+   )
+  #+no (specializer-accepts-generalizer-p-using-pattern
    gf specializer (specializer-parsed-pattern specializer) generalizer))
 
 ;; TODO we can do this with `pattern-more-specific-p' by turning class
@@ -236,6 +231,20 @@
      (pattern variable-pattern)
      (generalizer t))
   (values t t))
+
+(defmethod specializer-accepts-generalizer-p-using-pattern
+    ((gf specializable:specializable-generic-function)
+     (specializer late-pattern-specializer)
+     (pattern optima.core:cons-pattern)
+     (generalizer (eql (find-class 'cons))))
+  (values t (pattern-subpatterns-unrestricted-p pattern)))
+
+(defmethod specializer-accepts-generalizer-p-using-pattern
+    ((gf specializable:specializable-generic-function)
+     (specializer late-pattern-specializer)
+     (pattern optima.core:cons-pattern)
+     (generalizer (eql (find-class 'cons))))
+  (values t (pattern-subpatterns-unrestricted-p pattern)))
 
 (defmethod specializer-accepts-generalizer-p-using-pattern
     ((gf specializable:specializable-generic-function)

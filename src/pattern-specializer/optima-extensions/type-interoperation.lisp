@@ -8,24 +8,26 @@
 
 ;;; Utilities
 
+(defun inclusions->relation (subset1      definitive1p
+                             subset2      definitive2p
+                             intersection definitive-intersection-p)
+  (cond
+    ((and intersection definitive-intersection-p)
+     '//)
+    ((and subset1 definitive1p subset2 definitive2p)
+     '=)
+    ((and subset1 definitive1p)
+     '<)
+    ((and subset2 definitive2p)
+     '>)
+    (t
+     '/=)))
+
 (defun compare-types (type1 type2)
-  (multiple-value-bind (result1 definitive1p)
-      (subtypep type1 type2)
-    (multiple-value-bind (result2 definitive2p)
-        (subtypep type2 type1)
-      (multiple-value-bind (result-and definitive-and-p)
-          (subtypep `(and ,type1 ,type2) nil)
-        (cond
-          ((and result-and definitive-and-p)
-           '//)
-          ((and result1 definitive1p result2 definitive2p)
-           '=)
-          ((and result1 definitive1p)
-           '<)
-          ((and result2 definitive2p)
-           '>)
-          (t
-           '/=))))))
+  (multiple-value-call #'inclusions->relation
+    (subtypep type1 type2)
+    (subtypep type2 type1)
+    (subtypep `(and ,type1 ,type2) nil)))
 
 ;; The following two functions are use by
 ;; `guard-pattern-maybe-{type,predicate}'. Optima's syntax for
@@ -62,6 +64,8 @@
 (defun guard-pattern-maybe-type-specifier (pattern)
   (flet ((predicate->type (predicate)
            (case predicate
+             (symbolp 'symbol)
+             (numberp 'number)
              (consp   'cons)
              (arrayp  'array)
              (vectorp 'vector)

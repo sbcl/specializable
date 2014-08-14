@@ -13,6 +13,7 @@
 
 (export 'specializer-type-specifier)
 
+;; TODO maybe should not depend on method
 (defgeneric specializer-type-specifier (proto-generic-function proto-method specializer)
   #+sb-doc
   (:documentation

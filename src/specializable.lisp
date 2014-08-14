@@ -367,11 +367,10 @@
                (=)
                ((> /= //) (return nil)))))))
 
-(defmethod specializer<
-    ((gf specializable-generic-function)
-     (s1 class)
-     (s2 class)
-     (generalizer class))
+(defmethod specializer< ((gf standard-generic-function)
+                         (s1 class)
+                         (s2 class)
+                         (generalizer class))
   (let ((cpl))
     (flet ((cpl ()
              (or cpl
@@ -386,15 +385,20 @@
          '>)
         (t
          '/=)))))
-(defmethod specializer<
-    ((gf specializable-generic-function) (s1 sb-mop:eql-specializer) (s2 sb-mop:eql-specializer) generalizer)
-  (declare (ignore generalizer))
+(defmethod specializer< ((gf standard-generic-function)
+                         (s1 sb-mop:eql-specializer)
+                         (s2 sb-mop:eql-specializer)
+                         generalizer)
   (if (eq (sb-mop:eql-specializer-object s1) (sb-mop:eql-specializer-object s2))
       '=
       '//))
-(defmethod specializer< ((gf specializable-generic-function) (s1 sb-mop:eql-specializer) (s2 class) generalizer)
-  (declare (ignore generalizer))
+(defmethod specializer< ((gf standard-generic-function)
+                         (s1 sb-mop:eql-specializer)
+                         (s2 class)
+                         generalizer)
   '<)
-(defmethod specializer< ((gf specializable-generic-function) (c1 class) (c2 sb-mop:eql-specializer) generalizer)
-  (declare (ignore generalizer))
+(defmethod specializer< ((gf standard-generic-function)
+                         (c1 class)
+                         (c2 sb-mop:eql-specializer)
+                         generalizer)
   '>)

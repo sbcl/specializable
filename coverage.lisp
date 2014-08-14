@@ -35,8 +35,8 @@
       (sb-cover:clear-coverage))))
 
 (mapcar #'compute-coverage-for-system
-        '(:specializable
-          :language-extension.cons-specializer
-          :language-extension.accept-specializer
-          :language-extension.prototype-specializer
+        '(#+no :specializable
+          #+no :language-extension.cons-specializer
+          #+no :language-extension.accept-specializer
+          #+no :language-extension.prototype-specializer
           :language-extension.pattern-specializer))

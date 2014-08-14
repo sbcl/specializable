@@ -6,17 +6,6 @@
 
 (cl:in-package #:pattern-specializer.optima-extensions)
 
-;; TODO should be merged upstream
-(defmethod unparse-pattern ((pattern constant-pattern))
-  (let ((value (constant-pattern-value pattern)))
-    (typecase value
-      ((and symbol (not keyword) (not (member nil t)))
-       `(quote ,value))
-      (cons
-       `(quote ,value))
-      (t
-       value))))
-
 (defun reconstitute-pattern (pattern subpatterns)
   "Return a copy of PATTERN with subpatterns replaced by SUBPATTERN. "
   #+TODO-maybe-later (make-instance (class-of pattern)

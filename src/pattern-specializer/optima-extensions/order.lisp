@@ -303,17 +303,8 @@
 (defmethod pattern-more-specific-1-p ((pattern1 constant-pattern)
                                       (pattern2 guard-pattern))
   (if-let ((type (guard-pattern-maybe-type-specifier pattern2)))
-    (let* ((value-type `(eql ,(constant-pattern-value pattern1)))
-           (sub1-p     (subtypep value-type type))
-           (sub2-p     (subtypep type value-type)))
-      (cond
-        ((and sub1-p sub2-p)
-         '=)
-        ((and sub1-p (not sub2-p))
-         '<)
-        (t
-         '//)))
-    (call-next-method)))
+    (compare-types `(eql ,(constant-pattern-value pattern1)) type)
+    '/= #+no (call-next-method)))
 
 (defmethod pattern-more-specific-1-p ((pattern1 variable-pattern)
                                       (pattern2 guard-pattern))
