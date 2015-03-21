@@ -202,6 +202,7 @@
 
 ;;; Discriminating function generation
 
+;; TODO if guard-pattern contains variable-pattern as its subpattern, we can use that directly
 (defun augment-pattern-for-discriminating-function (pattern paths)
   "TODO of the form
 

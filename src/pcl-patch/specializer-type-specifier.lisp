@@ -1,6 +1,6 @@
 ;;;; specializer-type-specifier.lisp --- Hot-patch for SBCL's PCL variant.
 ;;;;
-;;;; Copyright (C) 2014 Jan Moringen
+;;;; Copyright (C) 2014, 2015 Jan Moringen
 ;;;;
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
 
@@ -227,6 +227,8 @@
               (parse-body (cddr method-lambda)))
              (method-name *method-name*)
              (method-lambda-list *method-lambda-list*)
+             ;; Macroexpansion caused by code-walking may call make-method-lambda and
+             ;; end up with wrong values
              (*method-name* nil)
              (*method-lambda-list* nil)
              (generic-function-name (when method-name (car method-name)))
@@ -234,6 +236,13 @@
                                           (ecase (car method-lambda)
                                             (lambda (second method-lambda))
                                             (named-lambda (third method-lambda)))))
+             ;; the method-cell is a way of communicating what method a
+             ;; method-function implements, for the purpose of
+             ;; NO-NEXT-METHOD.  We need something that can be shared
+             ;; between function and initargs, but not something that
+             ;; will be coalesced as a constant (because we are naughty,
+             ;; oh yes) with the expansion of any other methods in the
+             ;; same file.  -- CSR, 2007-05-30
              (method-cell (list (make-symbol "METHOD-CELL")))
              ((parameters lambda-list specializers)
               (parse-specialized-lambda-list specialized-lambda-list))
@@ -241,6 +250,11 @@
              (slots (mapcar #'list required-parameters))
              (class-declarations
               `(declare
+                ;; These declarations seem to be used by PCL to pass
+                ;; information to itself; when I tried to delete 'em
+                ;; ca. 0.6.10 it didn't work. I'm not sure how
+                ;; they work, but note the (VAR-DECLARATION '%CLASS ..)
+                ;; expression in CAN-OPTIMIZE-ACCESS1. -- WHN 2000-12-30
                 ,@(remove nil (mapcar (lambda (a s)
                                         (and (symbolp s) (neq s t)
                                              `(%class ,a ,s)))

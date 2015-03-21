@@ -1,6 +1,6 @@
 ;;;; pattern-generic-function.lisp --- Pattern generic function and method.
 ;;;;
-;;;; Copyright (C) 2014 Jan Moringen
+;;;; Copyright (C) 2014, 2015 Jan Moringen
 ;;;;
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
 
@@ -29,25 +29,25 @@
                  (find name keyword :key #'third)))
            (check-specializer (arg-position specializer)
              (flet ((check-variable (name)
-                      (flet ((loose (&rest args)
+                      (flet ((lose (&rest args)
                                (apply #'pattern-variable-name-error
                                       arg-position specializer name args)))
                         ;; Check against LAMBDA-LIST.
                         (when-let ((position (required-name-p name)))
-                          (loose "the name of the ~:R required formal parameter"
+                          (lose "the name of the ~:R required formal parameter"
                                  (1+ position)))
                         (when-let ((optional (optional-name-p name)))
-                          (loose "the ~:[suppliedp ~
+                          (lose "the ~:[suppliedp ~
                                       variable~:;name~] of the ~S ~
                                       parameter ~S"
                                  (eq name (first optional)) '&optional optional))
                         (when (rest-name-p name)
-                          (loose "the ~S parameter ~S" '&rest name))
+                          (lose "the ~S parameter ~S" '&rest name))
                         (when-let ((key (keyword-name-p name)))
-                          (loose "the ~S parameter ~S" '&key key))
+                          (lose "the ~S parameter ~S" '&key key))
                         ;; TODO check against already seen variables
                         (when-let ((previous (gethash name seen)))
-                          (apply #'loose
+                          (apply #'lose
                                  "the pattern variable ~S in the ~
                                   specializer~
                                   ~@:_~@:_~2@T~S~@:_~@:_~
@@ -60,11 +60,10 @@
                (mapc (compose #'check-variable #'first) ; TODO use specializer-pattern-variables?
                      (pattern-variables-and-paths
                       (specializer-parsed-pattern specializer))))))
-        (loop
-           :for specializer :in specializers
-           :for i :from 1
-           :do (when (typep specializer 'pattern-specializer)
-                 (check-specializer i specializer)))))))
+        (loop :for specializer :in specializers
+           :for i :from 1 :do
+           (when (typep specializer 'pattern-specializer)
+             (check-specializer i specializer)))))))
 
 ;; For a generic function with a lambda-list of the form
 ;;
@@ -258,22 +257,22 @@
           (push component components)
           component))))
 
-;; TODO generic function with methods for {early,late}-pattern-specializer and everything else
-;; late-pattern-specializer method will be identical to ...-upgrade-specializer
-(defun required-parameter-info-add-specializer (info specializer)
-  (typecase specializer
-    (pattern-specializer
-     (push specializer (required-parameter-info-pattern-specializers info))
-     (let* ((component (required-parameter-info-ensure-component-for
-                        info specializer))
-            (component (specializer-component-add-specializer
-                        component specializer)))
-       (values info component)))
-    (t
-     (assert (not (find specializer (required-parameter-info-other-specializers info))))
-     (push specializer
-           (required-parameter-info-other-specializers info))
-     info)))
+(defmethod required-parameter-info-add-specializer
+    ((info        required-parameter-info)
+     (specializer sb-pcl:specializer))
+  (assert (not (find specializer (required-parameter-info-other-specializers info))))
+  (push specializer (required-parameter-info-other-specializers info))
+  info)
+
+(defmethod required-parameter-info-add-specializer
+    ((info        required-parameter-info)
+     (specializer pattern-specializer)) ; not `late-pattern-specializer', though
+  (push specializer (required-parameter-info-pattern-specializers info))
+  (let* ((component (required-parameter-info-ensure-component-for
+                     info specializer))
+         (component (specializer-component-add-specializer
+                     component specializer)))
+    (values info component)))
 
 ;; Find `early-pattern-specializer' instances associated with
 ;; SPECIALIZER and replace them with SPECIALIZER. This is necessary
@@ -282,16 +281,15 @@
 ;; `required-parameter-info'. A later call to `add-method' has access
 ;; to the proper `late-pattern-specializer' instances and calls this
 ;; functions to replace the former with the latter.
-(defun required-parameter-info-upgrade-specializer (info specializer)
-  (unless (typep specializer 'late-pattern-specializer)
-    (return-from required-parameter-info-upgrade-specializer info))
-
+(defmethod required-parameter-info-add-specializer
+    ((info        required-parameter-info)
+     (specializer late-pattern-specializer))
   (with-accessors ((specializers required-parameter-info-pattern-specializers)
                    (components   required-parameter-info-components))
       info
     (labels ((my-forthcoming-p (specializer*)
                (and (typep specializer* 'early-pattern-specializer)
-                    (eq '= (pattern-more-specific-p
+                    (eq '= (pattern-more-specific-p ; TODO use specializer<
                             (specializer-parsed-pattern specializer*)
                             (specializer-parsed-pattern specializer)))))
              (replace-my-forthcoming (specializers)
@@ -389,12 +387,7 @@
 
 (defmethod add-method :after ((generic-function pattern-generic-function)
                               (method           pattern-method))
-  (mapc (lambda (info specializer)
-          (typecase specializer
-            (late-pattern-specializer
-             (required-parameter-info-upgrade-specializer info specializer))
-            (t
-             (required-parameter-info-add-specializer info specializer))))
+  (mapc #'required-parameter-info-add-specializer
         (generic-function-required-parameter-infos generic-function)
         (method-specializers method)))
 

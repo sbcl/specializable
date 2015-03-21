@@ -268,16 +268,14 @@
 (defmethod pattern-more-specific-1-p ((pattern1 guard-pattern)
                                       (pattern2 guard-pattern))
   (let* ((subpattern1 (guard-pattern-subpattern pattern1))
-         (variable1   (progn
-                        (assert (typep subpattern1 'variable-pattern)) ; TODO probably not true; we should collect variables instead
-                        (variable-pattern-name subpattern1)))
+         (variables1  (mapcar #'car (pattern-variables-and-paths
+                                     subpattern1 :include-uninterned t)))
          (test-form1  (guard-pattern-test-form pattern1))
          (type1       (guard-pattern-maybe-type-specifier pattern1))
 
          (subpattern2 (guard-pattern-subpattern pattern2))
-         (variable2   (progn
-                        (assert (typep subpattern2 'variable-pattern))
-                        (variable-pattern-name subpattern2)))
+         (variables2  (mapcar #'car (pattern-variables-and-paths
+                                     subpattern2 :include-uninterned t)))
          (test-form2  (guard-pattern-test-form pattern2))
          (type2       (guard-pattern-maybe-type-specifier pattern2))
 
@@ -286,8 +284,12 @@
          (sub2-p      (when (and type1 type2)
                         (subtypep type2 type1))))
     (cond
-      ((equal (subst nil variable1 test-form1) ; TODO needs a code walker :(
-              (subst nil variable2 test-form2))
+      ((equal (replace-free-variables-in-form ; TODO make a function
+               (mapcar (lambda (name) (cons name nil)) variables1)
+               test-form1)
+              (replace-free-variables-in-form
+               (mapcar (lambda (name) (cons name nil)) variables2)
+               test-form2))
        (pattern-more-specific-1-p subpattern1 subpattern2))
       ((and sub1-p sub2-p)
        (pattern-more-specific-1-p subpattern1 subpattern2))

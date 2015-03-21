@@ -230,16 +230,56 @@
      :include-unnamed include-unnamed :include-uninterned include-uninterned)
     (nreverse result)))
 
-(defun pattern-anonymize-variables (pattern)
+
+
+(defun replace-free-variables-in-form (replacements test-form)
+  (sublis replacements test-form)) ; TODO needs a code walker :(
+
+;; Warning: destructively modifies PATTERN.
+(defun guard-pattern-replace-variables-in-test-form! (replacements pattern)
+  (declare (type list replacements)
+           (type guard-pattern pattern))
+  (with-accessors ((test-form guard-pattern-test-form)) pattern
+    (setf test-form (replace-free-variables-in-form replacements test-form))
+    pattern))
+
+(defvar *variable-replacements*)
+
+;; TODO make handling of guard patterns configurable
+(defun pattern-anonymize-variables (pattern
+                                    &key
+                                    (if-complex-guard-pattern #'error))
   "Return a copy of PATTERN in which all variables are
    anonymous (i.e. have the name NIL)."
-  (map-pattern/reconstitute
-   (lambda (pattern recurse reconstitute)
-     (declare (ignore recurse reconstitute))
-     (typecase pattern
-       (variable-pattern (make-variable-pattern))
-       (guard-pattern    pattern)))
-   pattern))
+  (let ((*variable-replacements* '()))
+    (map-pattern/reconstitute
+     (lambda (pattern recurse reconstitute)
+       (declare (ignore recurse))
+       (typecase pattern
+         (variable-pattern
+          (make-variable-pattern
+           (when-let ((replacement (assoc (variable-pattern-name pattern)
+                                          *variable-replacements*)))
+             (cdr replacement))))
+         (guard-pattern
+          (let ((variables
+                 (mapcar #'car (pattern-variables-and-paths pattern))))
+            (when (> (length variables) 1)
+              (funcall if-complex-guard-pattern
+                       (make-condition
+                        'simple-error
+                        :format-control   "~@<Multiple variables in guard ~
+                                           pattern ~S: ~{~S~^, ~}.~@:>"
+                        :format-arguments (list pattern variables))))
+            (if variables
+                (let* ((replacements
+                        (mapcar (lambda (name) (cons name (gensym))) variables))
+                       (*variable-replacements*
+                        (append replacements *variable-replacements*)))
+                  (guard-pattern-replace-variables-in-test-form!
+                   replacements (funcall reconstitute)))
+                pattern)))))
+     pattern)))
 
 (defun make-predicate-form (pattern object-var)
   `(optima:match ,object-var

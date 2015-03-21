@@ -278,3 +278,10 @@
        ((or 1 2)   1          t)
        ((or x 1)   1          t)
        ((or x 1)   2          t)))))
+
+
+;; TODO something like this somewhere
+
+#+no (pattern-more-specific-p
+      (pattern-anonymize-variables (parse-pattern '(guard (and (cons x 1) (cons 2 1)) (and (integerp x) (floatp x)))))
+      (pattern-anonymize-variables (parse-pattern '(guard (and (cons x 1) (cons 2 1)) (and (integerp x) (floatp x))))))

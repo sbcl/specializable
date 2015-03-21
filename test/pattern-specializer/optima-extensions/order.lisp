@@ -15,10 +15,8 @@
 (defclass foo ()
   ((bar :initarg :bar)
    (baz :initarg :baz)))
-(sb-mop:finalize-inheritance (find-class 'foo)) ; TODO optima bug?
 
 (defclass fez (foo) ())
-(sb-mop:finalize-inheritance (find-class 'fez)) ; TODO optima bug?
 
 ;;; Actual tests
 
