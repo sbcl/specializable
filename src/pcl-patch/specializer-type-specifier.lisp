@@ -269,9 +269,7 @@
                               (return t))
                              ((eq p '&aux)
                               (return nil)))))
-             ((walked-lambda call-next-method-p closurep
-                             next-method-p-p setq-p
-                             parameters-setqd)
+             ((walked-lambda call-next-method-p setq-p parameters-setqd)
               (walk-method-lambda
                method-lambda required-parameters env slots))
              ((walked-lambda-body walked-declarations)
@@ -300,11 +298,9 @@
                    (,lambda-list .method-args. .next-methods.
                                  :call-next-method-p
                                  ,(when call-next-method-p t)
-                                 :next-method-p-p ,next-method-p-p
                                  :setq-p ,setq-p
                                  :parameters-setqd ,parameters-setqd
                                  :method-cell ,method-cell
-                                 :closurep ,closurep
                                  :applyp ,applyp)
                  ,@walked-declarations
                  (locally (declare (disable-package-locks
