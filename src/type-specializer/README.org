@@ -1,0 +1,36 @@
+#+TITLE:       README
+#+AUTHOR:      Jan Moringen \and Christophe Rhodes
+#+DESCRIPTION: Types as CLOS specializers - SBCL only
+#+KEYWORDS:    common lisp, clos, specializer, type
+#+LANGUAGE:    en
+
+* STARTED Introduction
+
+  *This system only works in the [[http://www.sbcl.org][SBCL]] Common Lisp implementation.*
+
+* STARTED Syntax
+  Type specializers use the designator =cl:type= in combination with
+  Common Lisp type specifiers:
+
+  #+BEGIN_SRC lisp
+    (defmethod my-method ((parameter (type TYPE)))
+      …)
+  #+END_SRC
+
+  where =TYPE= is a Common Lisp [[http://l1sp.org/cl/glossary/type_specifier][type specifier]]. More concrete example:
+
+  #+BEGIN_SRC lisp
+    ;; This method is applicable to every CONS whose CAR is 1 and whose
+    ;; CDR is an integer.
+    (defmethod my-method ((parameter (type (cons (eql 1) integer))))
+      …)
+  #+END_SRC
+
+* TODO Method Applicability and Ordering
+  Things like =(cons (eql 0) integer)=, =(cons integer (eql 0))=
+* TODO Interoperation with =class= and =eql= Specializers
+
+* Settings                                                         :noexport:
+
+#+OPTIONS: H:2 num:nil toc:nil \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
+#+OPTIONS: TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:not-in-toc

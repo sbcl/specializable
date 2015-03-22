@@ -45,6 +45,8 @@
     negotiation. See [[file:examples/accept-specializer.lisp]].
   + =prototype-specializer= for dispatch on prototype objects. See
     [[file:examples/prototype-specializer.lisp]]
+  + =type-specializer= for dispatch on arbitrary Common Lisp
+    types. See [[file:examples/type-specializer.lisp]]
 
 * Footnotes
 
