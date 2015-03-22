@@ -356,10 +356,8 @@
   (let ((cpl))
     (flet ((cpl ()
              (or cpl
-                 (progn
-                   (unless (sb-mop:class-finalized-p generalizer)
-                     (sb-mop:finalize-inheritance generalizer))
-                   (setf cpl (sb-mop:class-precedence-list generalizer))))))
+                 (setf cpl (sb-mop:class-precedence-list
+                            (sb-pcl:ensure-class-finalized generalizer))))))
       (cond
         ((eq s1 s2)
          '=)
