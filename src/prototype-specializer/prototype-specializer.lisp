@@ -67,7 +67,7 @@
   ;; MAP-DELEGATIONS-AND-PATHS conses and is generally slower. So
   ;; perform a quick check via MAP-DELEGATIONS and only call
   ;; MAP-DELEGATIONS-AND-PATHS if an error report has to be generated.
-  (flet ((loose ()
+  (flet ((lose ()
            (map-delegations-and-paths
             (lambda (other-delegation path)
               (when (eq object other-delegation)
@@ -78,7 +78,7 @@
             delegation)))
     (map-delegations (lambda (other-delegation)
                        (when (eq object other-delegation)
-                         (loose)))
+                         (lose)))
                      delegation))
   (pushnew delegation (delegations object)))
 (declaim (ftype (function (prototype-object))

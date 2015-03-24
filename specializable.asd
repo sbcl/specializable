@@ -1,6 +1,6 @@
 ;;;; specializable.asd --- System definition for the specializable system.
 ;;;;
-;;;; Copyright (C) 2014 Christophe Rhodes, Jan Moringen
+;;;; Copyright (C) 2014, 2015 Christophe Rhodes, Jan Moringen
 ;;;;
 ;;;; Author: Christophe Rhodes <csr21@cantab.net>
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
@@ -28,15 +28,15 @@
 (defmethod perform :before ((operation load-op) (component (eql (find-system :specializable))))
   ;; TODO change required SBCL version
   (let ((required-version '(1 1 2)))
-    (flet ((loose ()
+    (flet ((lose ()
              (error "This system only work on SBCL, version ~{~D~^.~} or newer"
                     required-version)))
-      #-sbcl (loose)
+      #-sbcl (lose)
       #+sbcl
       (let ((version-assert (find-symbol "ASSERT-VERSION->=" :sb-ext)))
         (if version-assert
             (apply version-assert required-version)
-            (loose))))))
+            (lose))))))
 
 (defsystem :specializable-test
   :author      "Jan Moringen <jmoringe@techfak.uni-bielefeld.de>"
