@@ -1,6 +1,6 @@
 ;;;; protocol.lisp --- Protocol provided by the specializable system.
 ;;;;
-;;;; Copyright (C) 2014 Christophe Rhodes, Jan Moringen
+;;;; Copyright (C) 2014, 2015 Christophe Rhodes, Jan Moringen
 ;;;;
 ;;;; Author: Christophe Rhodes <csr21@cantab.net>
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
@@ -44,8 +44,9 @@
 ;;;
 ;;; Specializers used in methods of the generic function have to
 ;;; implement the protocol for extended specializers below. Similarly,
-;;; for generalizers returned by `generalizers-of-using-class', the
-;;; generalizer protocol below has to be implemented.
+;;; for generalizers returned by `generalizer-of-using-class' and via
+;;; `compute-argument-generalizing-function', the generalizer protocol
+;;; below has to be implemented.
 
 (defgeneric generalizer-of-using-class (generic-function object arg-position)
   (:documentation
@@ -54,8 +55,15 @@
     called). ARG-POSITION is the position of object in the (required
     portion of the) lambda-list of GENERIC-FUNCTION.
 
-    This is called once for each pair of required argument OBJECT and
-    its position in the lambda-list ARG-POSITION."))
+    This function is called once for each pair of required argument
+    OBJECT and its position in the lambda-list ARG-POSITION.
+
+    ARG-POSITION can be used to employ different strategies for
+    mapping OBJECT to a generalizer depending on the corresponding
+    required parameter of GENERIC-FUNCTION. For example, it could be
+    the case that OBJECT itself or CLASS-OF OBJECT is a suitable
+    generalizer for the first required argument but not for other
+    required required arguments."))
 
 (defgeneric compute-argument-generalizing-function (generic-function arg-position)
   (:documentation
@@ -67,7 +75,8 @@
     generalizer object for that argument.
 
     This can be accomplishes by calling the generic function
-    `generalizer-of-using-class'."))
+    `generalizer-of-using-class'. There is a default default method
+    which does exactly that."))
 
 (defgeneric compute-effective-arguments-function (generic-function num-required)
   (:documentation
@@ -88,7 +97,7 @@
 
     1. the list of methods in GENERIC-FUNCTION applicable to the
        arguments represented by the generalizer objects.
-    2. a Boolean indicating whether the first value is definitive
+    2. a Boolean indicating whether the first value is \"definitive\"
        meaning that
        a) calling `compute-applicable-methods' is not necessary
        b) the first value can be cached for future calls with
@@ -96,11 +105,11 @@
 
 ;;; Generalizer protocol
 ;;;
-;;; It has be efficiently possible to determine the equivalence of two
-;;; given generalizer objects.
+;;; It has to be efficiently possible to determine the equivalence of
+;;; two given generalizer objects.
 ;;;
-;;; To enable this, for generalizers methods on the following generic
-;;; function have to be provided:
+;;; To enable this, methods on the following generic function have to
+;;; be provided for generalizers:
 ;;;
 ;;;   generalizer-equal-hash-key generic-function generalizer
 ;;;
@@ -123,17 +132,17 @@
 ;;; 1. to test whether they accept arguments supplied in a generic
 ;;;    function call (based on generalizer objects representing the
 ;;;    arguments and based on the arguments themselves)
-;;; 2. to establish an order according to specificity w.r.t. to a
+;;; 2. to establish an order according to specificity w.r.t. a
 ;;;    given generalizer object
 ;;;
-;;; To achieve this, the methods on the following generic functions
-;;; have to be provided for extended specializers:
+;;; To achieve this, methods on the following generic functions have
+;;; to be provided for extended specializers:
 ;;;
 ;;;   specializer-accepts-generalizer-p generic-function specializer generalizer
 ;;;
 ;;;     Indicate whether SPECIALIZER accepts GENERALIZER in the sense
 ;;;     that if all specializers of a given method accept their
-;;;     respective arguments, the method is applicable.
+;;;     respective generalizers, the method is applicable.
 ;;;
 ;;;     Called prior to `specializer-accepts-p' to potentially compute
 ;;;     a cachable set of applicable methods based on generalizers
@@ -160,11 +169,11 @@
   (:documentation
    "Indicate whether SPECIALIZER accepts GENERALIZER (in the sense
     that if all specializers of a given method accept their respective
-    arguments, the method is applicable) by returning two values
+    generalizers, the method is applicable) by returning two values
 
     1. a Boolean indicating whether SPECIALIZER can principally accept
        GENERALIZER
-    2. a Boolean indicating whether the first value is definitive
+    2. a Boolean indicating whether the first value is \"definitive\"
        meaning that
        a) calling `specializer-accepts-p' is not necessary
        b) computations based on the first value can be cached for
@@ -192,7 +201,7 @@
        w.r.t. GENERALIZER
 
     // if the set of objects accepted by SPECIALIZER1 is disjoint from
-       the set of objects accepted by SPECIALIZER2.
+       the set of objects accepted by SPECIALIZER2
 
     /= if there is no relation between the respective specificity of
        SPECIALIZER1 and SPECIALIZER2 w.r.t. GENERALIZER

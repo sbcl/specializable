@@ -151,6 +151,20 @@
 ;;; - speed
 ;;; - DONE (in SBCL itself) interaction with TRACE et al.
 (defmethod sb-mop:compute-discriminating-function ((gf specializable-generic-function))
+  ;; This method employs a number of optimizations by default that can
+  ;; selectively be disabled by adding elements to
+  ;; DISABLED-OPTIMIZATIONS in GF:
+  ;;
+  ;; :STANDARD-DISCRIMINATION
+  ;;   Do not fall back to standard CLOS discrimination behavior if GF only
+  ;;   has standard specializers.
+  ;;
+  ;; :SINGLE-ARG-CACHEING
+  ;;   Do not employ optimized cacheing strategy if GF has one required
+  ;;   parameter.
+  ;;
+  ;; :CACHEING
+  ;;   Do not employ cacheing strategy based on generalizer hash keys.
   (when (and (not (member :standard-discrimination (disabled-optimizations gf)
                           :test #'eq))
              (only-has-standard-specializers-p gf))
@@ -192,6 +206,8 @@
              (locally (declare (function arguments-function))
                (funcall arguments-function args generalizers))))
       (cond
+        ;; Disable all cacheing: always use
+        ;; SLOW-METHOD-LOOKUP-AND-CALL.
         ((member :cacheing (disabled-optimizations gf)
                  :test #'eq)
          (lambda (&rest args)
@@ -204,6 +220,8 @@
                      (effective-arguments generalizers args)
                      args)
               generalizers))))
+        ;; One argument special case: avoid consing up lists of
+        ;; generalizers and generalizers hash keys.
         ((first-arg-only-special-case-p gf)
          (let ((generalizer-maker (aref generalizer-makers 0)))
            (declare (type function generalizer-maker))
@@ -230,11 +248,13 @@
                        (sb-pcl::invoke-emf emfun effective-args)
                        (slow-method-lookup-and-call
                         gf effective-args (all-generalizers)))))))))
+        ;; General case with cacheing: compute a list of generalizers
+        ;; and generalizer hash keys.
         (t
          (lambda (&rest args)
            (check-arguments args)
            (let ((generalizers (make-list num-required))
-                 (keys (make-list num-required)))
+                 (keys (make-list num-required))) ; TODO would a vector be faster? probably better for stack allocation
              (declare (dynamic-extent generalizers keys))
              (compute-generalizers generalizers args)
              (map-into keys #'compute-hash-key generalizers)
