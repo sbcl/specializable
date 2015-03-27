@@ -8,7 +8,7 @@
 
   *This system only works in the [[http://www.sbcl.org][SBCL]] Common Lisp implementation.*
 
-* TODO Syntax
+* STARTED Syntax
   Pattern specializers use the designator pattern-specializer:pattern
   in combination with [[https://github.com/m2ym/optima][Optima]]'s syntax for patterns, i.e.
 
@@ -27,7 +27,7 @@
       …)
   #+END_SRC
 
-** TODO Pattern Variables
+** STARTED Pattern Variables
    When patterns used in pattern specializers contain variables,
    corresponding bindings are established in the associated bodies of
    the respective methods:
@@ -49,7 +49,7 @@
    does not work because the variable =x= would have to be bound to
    two different values (one from each pattern specializer) in the
    method body.
-** TODO Limitations
+** STARTED Limitations
    Unfortunately, not all Optima patterns are currently supported. In
    particular:
 
