@@ -1,6 +1,6 @@
 ;;;; specializable-graph.asd --- System definition for the specializable-graph system.
 ;;;;
-;;;; Copyright (C) 2014 Jan Moringen
+;;;; Copyright (C) 2014, 2015 Jan Moringen
 ;;;;
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
 
@@ -16,4 +16,5 @@
   :components  ((:module "src/graph"
                  :serial t
                  :components ((:file       "package")
+                              (:file       "protocol")
                               (:file       "graph")))))

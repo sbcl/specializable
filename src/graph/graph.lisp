@@ -13,9 +13,7 @@
     (mapcar (compose selector #'sb-mop:method-specializers)
             (sb-mop:generic-function-methods generic-function))))
 
-;;;
-
-(defgeneric specializer-label (graph specializer))
+;;; Specializer labels
 
 (defmethod specializer-label ((graph t) (specializer sb-pcl:specializer))
   (princ-to-string specializer))
