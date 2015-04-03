@@ -16,39 +16,41 @@
 ;;; Specializer graph
 
 (defclass specializer-graph ()
-  ((generic-function :initarg :generic-function
-                     :reader  specializer-graph-generic-function)
-   (argument         :initarg :argument
-                     :type    non-negative-integer
-                     :reader  specializer-graph-argument)
-   (generalizer      :initarg :generalizer
-                     :reader  specializer-graph-generalizer)))
+  ((generic-function  :initarg :generic-function
+                      :reader  specializer-graph-generic-function)
+   (argument-position :initarg :argument-position
+                      :type    non-negative-integer
+                      :reader  specializer-graph-argument-position)
+   (argument          :initarg :argument
+                      :reader  specializer-graph-argument)
+   (generalizer       :initarg :generalizer
+                      :reader  specializer-graph-generalizer)))
 
 (defmethod cl-dot:graph-object-node ((graph  specializer-graph)
                                      (object sb-pcl:specializer))
   (with-accessors ((generic-function specializer-graph-generic-function)
-                   (generalizer      specializer-graph-generalizer))
+                   (argument         specializer-graph-argument))
       graph
-    (let ((acceptsp (specializable:specializer-accepts-generalizer-p
-                     generic-function object generalizer)))
+    (let ((acceptsp (specializable:specializer-accepts-p
+                     object argument)))
       (make-instance 'cl-dot:node
                      :attributes (list :label     (princ-to-string object)
                                        :style     :filled
                                        :fillcolor (if acceptsp
                                                       "white"
-                                                      "grey"))))))
+                                                      "lightgrey"))))))
 
 (defmethod cl-dot:graph-object-points-to ((graph  specializer-graph)
                                           (object sb-pcl:specializer))
-  (with-accessors ((generic-function specializer-graph-generic-function)
-                   (argument         specializer-graph-argument)
-                   (generalizer      specializer-graph-generalizer))
+  (with-accessors ((generic-function  specializer-graph-generic-function)
+                   (argument-position specializer-graph-argument-position)
+                   (generalizer       specializer-graph-generalizer))
       graph
     (flet ((edgep (from to)
              (eq '< (specializable:specializer<
                      generic-function to from generalizer))))
       (let* ((specializers (generic-function-nth-arg-specializers
-                            generic-function argument))
+                            generic-function argument-position))
              (all          (remove-if-not (curry #'edgep object) specializers)))
         (remove-if (lambda (specializer)
                      (some (rcurry #'edgep specializer) all))
@@ -60,9 +62,10 @@
   (let ((generalizer (specializable:generalizer-of-using-class
                       generic-function argument argument-position)))
     (make-instance 'specializer-graph
-                   :generic-function generic-function
-                   :argument         argument-position
-                   :generalizer      generalizer)))
+                   :generic-function  generic-function
+                   :argument-position argument-position
+                   :argument          argument
+                   :generalizer       generalizer)))
 
 (defun specializer-graph (generic-function argument-position argument output-file
                           &rest args &key &allow-other-keys)
@@ -71,5 +74,11 @@
          (specializers (generic-function-nth-arg-specializers
                         (specializer-graph-generic-function graph)
                         argument-position))
-         (dot-graph    (cl-dot:generate-graph-from-roots graph specializers)))
+         (dot-graph    (cl-dot:generate-graph-from-roots
+                        graph specializers
+                        (list :label (let ((*print-right-margin* most-positive-fixnum))
+                                       (format nil "~A ~:R arg = ~A"
+                                               (specializer-graph-generic-function graph)
+                                               (specializer-graph-argument-position graph)
+                                               (specializer-graph-argument graph)))))))
     (apply #'cl-dot:dot-graph dot-graph output-file args)))
