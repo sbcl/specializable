@@ -13,6 +13,13 @@
     (mapcar (compose selector #'sb-mop:method-specializers)
             (sb-mop:generic-function-methods generic-function))))
 
+;;;
+
+(defgeneric specializer-label (graph specializer))
+
+(defmethod specializer-label ((graph t) (specializer sb-pcl:specializer))
+  (princ-to-string specializer))
+
 ;;; Specializer graph
 
 (defclass specializer-graph ()
@@ -32,9 +39,10 @@
                    (argument         specializer-graph-argument))
       graph
     (let ((acceptsp (specializable:specializer-accepts-p
-                     object argument)))
+                     object argument))
+          (string   (specializer-label graph object)))
       (make-instance 'cl-dot:node
-                     :attributes (list :label     (princ-to-string object)
+                     :attributes (list :label     string
                                        :style     :filled
                                        :fillcolor (if acceptsp
                                                       "white"
