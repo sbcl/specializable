@@ -1,3 +1,9 @@
+;;;; graph.lisp --- Draw graphs of methods and specializers.
+;;;;
+;;;; Copyright (C) 2014, 2015, Jan Moringen
+;;;;
+;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
+
 (cl:in-package #:specializable.graph)
 
 ;;; Utilities
@@ -21,7 +27,8 @@
 (defmethod cl-dot:graph-object-node ((graph  specializer-graph)
                                      (object sb-pcl:specializer))
   (with-accessors ((generic-function specializer-graph-generic-function)
-                   (generalizer      specializer-graph-generalizer)) graph
+                   (generalizer      specializer-graph-generalizer))
+      graph
     (let ((acceptsp (specializable:specializer-accepts-generalizer-p
                      generic-function object generalizer)))
       (make-instance 'cl-dot:node
@@ -35,7 +42,8 @@
                                           (object sb-pcl:specializer))
   (with-accessors ((generic-function specializer-graph-generic-function)
                    (argument         specializer-graph-argument)
-                   (generalizer      specializer-graph-generalizer)) graph
+                   (generalizer      specializer-graph-generalizer))
+      graph
     (flet ((edgep (from to)
              (eq '< (specializable:specializer<
                      generic-function to from generalizer))))
@@ -65,11 +73,3 @@
                         argument-position))
          (dot-graph    (cl-dot:generate-graph-from-roots graph specializers)))
     (apply #'cl-dot:dot-graph dot-graph output-file args)))
-
-;;; Test
-
-(specializer-graph #'cons-specializer.example::keyword-args 0 1.0d0
-                   "/tmp/specializer-dag-4.png" :format :png)
-
-(specializer-graph #'accept-specializer.example::cn-test 0 "text/plain;q=0.2,text/html;q=0.1"
-                   "/tmp/specializer-dag-5.png" :format :png)
