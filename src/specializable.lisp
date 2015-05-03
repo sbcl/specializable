@@ -367,11 +367,10 @@
                (=)
                ((> /= //) (return nil)))))))
 
-(defmethod specializer<
-    ((gf specializable-generic-function)
-     (s1 class)
-     (s2 class)
-     (generalizer class))
+(defmethod specializer< ((gf specializable-generic-function)
+                         (s1 class)
+                         (s2 class)
+                         (generalizer class))
   (let ((cpl))
     (flet ((cpl ()
              (or cpl
@@ -386,15 +385,28 @@
          '>)
         (t
          '/=)))))
-(defmethod specializer<
-    ((gf specializable-generic-function) (s1 sb-mop:eql-specializer) (s2 sb-mop:eql-specializer) generalizer)
+
+(defmethod specializer< ((gf specializable-generic-function)
+                         (s1 sb-mop:eql-specializer)
+                         (s2 sb-mop:eql-specializer)
+                         generalizer)
   (declare (ignore generalizer))
   (if (eq (sb-mop:eql-specializer-object s1) (sb-mop:eql-specializer-object s2))
       '=
       '//))
-(defmethod specializer< ((gf specializable-generic-function) (s1 sb-mop:eql-specializer) (s2 class) generalizer)
-  (declare (ignore generalizer))
-  '<)
-(defmethod specializer< ((gf specializable-generic-function) (c1 class) (c2 sb-mop:eql-specializer) generalizer)
-  (declare (ignore generalizer))
-  '>)
+
+(defmethod specializer< ((gf specializable-generic-function)
+                         (s1 sb-mop:eql-specializer)
+                         (s2 class)
+                         generalizer)
+  (let* ((class (class-of (sb-mop:eql-specializer-object s1)))
+         (relation (specializer< gf class s2 generalizer)))
+    (case relation
+      ((= <) '<)
+      (t     '//))))
+
+(defmethod specializer< ((gf specializable-generic-function)
+                         (s1 class)
+                         (s2 sb-mop:eql-specializer)
+                         generalizer)
+  (invert-specializer<-relation (specializer< gf s2 s1 generalizer)))
