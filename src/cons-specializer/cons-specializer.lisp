@@ -51,16 +51,40 @@
   (if (eql (%car s1) (%car s2))
       '=
       '//))
-(defmethod specializer< ((gf cons-generic-function) (s1 cons-specializer) (s2 class) generalizer)
+
+(defmethod specializer< ((gf cons-generic-function)
+                         (s1 cons-specializer)
+                         (s2 class)
+                         generalizer)
+  (case (specializer< gf (find-class 'cons) s2 generalizer)
+    ((= <) '<)
+    (t     '//)))
+
+(defmethod specializer< ((gf cons-generic-function)
+                         (s1 cons-specializer)
+                         (s2 sb-mop:eql-specializer)
+                         generalizer)
   (declare (ignore generalizer))
-  '<)
-(defmethod specializer< ((gf cons-generic-function) (s1 cons-specializer) (s2 sb-mop:eql-specializer) generalizer)
-  (declare (ignore generalizer))
-  '>)
-(defmethod specializer< ((gf cons-generic-function) (s1 sb-mop:specializer) (s2 cons-specializer) generalizer)
+  (let ((object (sb-mop:eql-specializer-object s2)))
+    (cond
+      ((not (consp object))
+       '//)
+      ((not (eq (%car s1) (car object)))
+       '//)
+      (t
+       '>))))
+
+(defmethod specializer< ((gf cons-generic-function)
+                         (s1 sb-mop:specializer)
+                         (s2 cons-specializer)
+                         generalizer)
   (invert-specializer<-relation (specializer< gf s2 s1 generalizer)))
+
 ;;; note: the need for this method is tricky: we need to translate
 ;;; from generalizers that our specializers "know" about to those that
 ;;; ordinary generic functions and specializers might know about.
-(defmethod specializer< ((gf cons-generic-function) (s1 sb-mop:specializer) (s2 sb-mop:specializer) (generalizer symbol))
+(defmethod specializer< ((gf cons-generic-function)
+                         (s1 sb-mop:specializer)
+                         (s2 sb-mop:specializer)
+                         (generalizer symbol))
   (specializer< gf s1 s2 (find-class 'cons)))
