@@ -11,7 +11,7 @@
 (declaim (ftype (function (t) (values function t &optional))
                 specializer-relation-is))
 (let ((predicates (make-hash-table :test #'equal)))
-  (defun specializer-relation-is (relation)
+  (defun specializer-relation-is (relation) ; TODO generally useful? move somewhere else? at least shared with pattern-specializer
     (let ((test
            (etypecase relation
              ((member = < > /= //)
