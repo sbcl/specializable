@@ -182,12 +182,12 @@
 
                  (debug-make-generalizer-maker-form/clause
                   `(,type
-                    (,(if accept-next-a-g-f-p
-                          'make-type-generalizer-with-next
-                          'make-type-generalizer)
-                      '(,@real-specializers) ',key
-                      ,@(when accept-next-a-g-f-p
-                              `((funcall (sb-ext:truly-the function ,next-a-g-f) ,arg)))))
+                    ,(if accept-next-a-g-f-p
+                         `(make-type-generalizer-with-next
+                           '(,@real-specializers) ',key
+                           (funcall (sb-ext:truly-the function ,next-a-g-f) ,arg))
+                         `(load-time-value (make-type-generalizer
+                                            '(,@real-specializers) ',key))))
                   specializers type)))
 
              (make-component-clauses (component)
