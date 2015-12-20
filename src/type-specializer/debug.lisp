@@ -15,7 +15,8 @@
     `(defun ,name ,lambda-list
        ,@(when documentation `(,documentation))
        ,declarations
-       (when *debug* ,@body)
+       (when (member *debug* '(:compile-time t))
+         ,@body)
        ,(first lambda-list))))
 
 (defun remove-debug-forms (form)

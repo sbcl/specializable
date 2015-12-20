@@ -200,11 +200,13 @@
       `(lambda (,arg ,@(when accept-next-a-g-f-p `(,next-a-g-f)))
          ,@(when accept-next-a-g-f-p
              `((declare (type function ,next-a-g-f))))
-         (debug-try-match ,arg ,(when accept-next-a-g-f-p t nil))
+         ,@(when (member *debug* '(:runtime t))
+             `((debug-try-match ,arg ,(when accept-next-a-g-f-p t nil))))
          (typecase ,arg
            ,@(mappend #'make-component-clauses components)
            (otherwise
-            ,@(unless accept-next-a-g-f-p `((debug-no-match)))
+            ,@(when (and (not accept-next-a-g-f-p) (member *debug* '(:runtime t)))
+                `((debug-no-match)))
             nil))))))
 
 (defun make-generalizer-maker (parameter)

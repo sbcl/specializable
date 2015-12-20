@@ -162,15 +162,22 @@
                  (make-generalizer-maker
                   (elt (generic-function-required-parameter-infos generic-function) arg-position))
                (let* ((next (when accepts-next-method-p (call-next-method))))
-                 (setf cell (if accepts-next-method-p
-                                (lambda (object)
-                                  (or (debug-generalizer/match
-                                       (funcall (sb-ext:truly-the function maker) object next))
-                                      (debug-generalizer/next
-                                       (funcall (sb-ext:truly-the function next) object))))
-                                (lambda (object)
-                                  (debug-generalizer/match
-                                   (funcall (sb-ext:truly-the function maker) object)))))))))
+                 (setf cell (if (member *debug* '(:runtime t))
+                                (if accepts-next-method-p
+                                    (lambda (object)
+                                      (or (debug-generalizer/match
+                                           (funcall (sb-ext:truly-the function maker) object next))
+                                          (debug-generalizer/next
+                                           (funcall (sb-ext:truly-the function next) object))))
+                                    (lambda (object)
+                                      (debug-generalizer/match
+                                       (funcall (sb-ext:truly-the function maker) object))))
+                                (if accepts-next-method-p
+                                    (lambda (object)
+                                      (or (funcall (sb-ext:truly-the function maker) object next)
+                                          (funcall (sb-ext:truly-the function next) object)))
+                                    (lambda (object)
+                                      (funcall (sb-ext:truly-the function maker) object)))))))))
       (setf cell (lambda (object)
                    (install)
                    (funcall cell object)))
