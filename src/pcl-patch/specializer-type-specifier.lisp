@@ -1,6 +1,6 @@
 ;;;; specializer-type-specifier.lisp --- Hot-patch for SBCL's PCL variant.
 ;;;;
-;;;; Copyright (C) 2014 Jan Moringen
+;;;; Copyright (C) 2014, 2016 Jan Moringen
 ;;;;
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
 
@@ -142,42 +142,6 @@
 
 ;; Hook into PCL (comments have been removed)
 
-(define-condition class-name-condition (condition)
-  ((name :initarg :name
-         :reader  class-name-condition-name))
-  (:default-initargs
-   :name (missing-arg)))
-
-(define-condition class-not-found-error (error
-                                         class-name-condition)
-  ((name :type (satisfies legal-class-name-p)))
-  (:report (lambda (condition stream)
-             (format stream "There is no class named ~
-                             ~/sb-impl::print-symbol-with-prefix/."
-                     (class-name-condition-name condition)))))
-
-(define-condition illegal-class-name-error (error
-                                            class-name-condition)
-  ()
-  (:report (lambda (condition stream)
-             (format stream "~S is not a legal class name."
-                     (class-name-condition-name condition)))))
-
-(defun find-class-from-cell (name cell &optional (errorp t))
-  (or (when cell
-        (or (classoid-cell-pcl-class cell)
-            (when *create-classes-from-internal-structure-definitions-p*
-              (let ((classoid (classoid-cell-classoid cell)))
-                (when (and classoid
-                           (or (condition-classoid-p classoid)
-                               (defstruct-classoid-p classoid)))
-                  (ensure-non-standard-class name classoid))))))
-      (cond ((null errorp) nil)
-            ((legal-class-name-p name)
-             (error 'class-not-found-error :name name))
-            (t
-             (error 'illegal-class-name-error :name name)))))
-
 ;; This function operates on
 ;; * non-parsed specializers, i.e. class names and extended
 ;;   specializer syntaxes
@@ -222,7 +186,7 @@
            method-lambda))
 
   (binding* (((real-body declarations documentation)
-              (parse-body (cddr method-lambda)))
+              (parse-body (cddr method-lambda) t))
              (method-name *method-name*)
              (method-lambda-list *method-lambda-list*)
              (*method-name* nil)
@@ -273,7 +237,7 @@
               (walk-method-lambda
                method-lambda required-parameters env slots))
              ((walked-lambda-body walked-declarations)
-              (parse-body (cddr walked-lambda))))
+              (parse-body (cddr walked-lambda) t)))
     (when (some #'cdr slots)
       (let ((slot-name-lists (slot-name-lists-from-slots slots)))
         (setq plist
