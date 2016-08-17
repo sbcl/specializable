@@ -165,7 +165,7 @@
          (arguments-function
           (compute-effective-arguments-function gf num-required))
          (emf-table (emf-table gf)))
-    (declare (type fixnum num-required) ; TODO correct?
+    (declare (type (integer 0 (#.lambda-parameters-limit)) num-required)
              (type (or null function) arguments-function)
              (type hash-table emf-table))
     (flet ((check-arguments (args)
@@ -198,7 +198,6 @@
          (lambda (&rest args)
            (check-arguments args)
            (let ((generalizers (make-list num-required)))
-             (declare (dynamic-extent generalizers))
              (compute-generalizers generalizers args)
              (slow-method-lookup-and-call
               gf (if arguments-function
@@ -239,8 +238,8 @@
          (lambda (&rest args)
            (check-arguments args)
            (let ((generalizers (make-list num-required))
-                 (keys (make-list num-required))) ; TODO would a vector be faster? probably better for stack allocation
-             (declare (dynamic-extent generalizers keys))
+                 (keys (make-list num-required))) ; TODO would a vector be faster?
+             (declare (sb-int:truly-dynamic-extent generalizers keys))
              (compute-generalizers generalizers args)
              (map-into keys #'compute-hash-key generalizers)
              (let ((emfun (gethash keys emf-table nil))
