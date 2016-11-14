@@ -15,8 +15,7 @@
   :components  ((:module "src"
                  :serial t
                  :components ((:module     "pcl-patch"
-                               :components ((:file       "specializer-type-specifier")
-                                            (:file       "make-specializer-form-using-class"))
+                               :components ((:file       "specializer-type-specifier"))
                                :if-feature :sbcl)
 
                               (:file       "package")
