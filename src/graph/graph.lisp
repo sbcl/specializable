@@ -1,6 +1,6 @@
 ;;;; graph.lisp --- Draw graphs of methods and specializers.
 ;;;;
-;;;; Copyright (C) 2014, 2015, Jan Moringen
+;;;; Copyright (C) 2014, 2015, 2016, Jan Moringen
 ;;;;
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
 
@@ -15,7 +15,7 @@
 
 ;;; Specializer labels
 
-(defmethod specializer-label ((graph t) (specializer sb-pcl:specializer))
+(defmethod specializer-html-label ((graph t) (specializer sb-pcl:specializer))
   (princ-to-string specializer))
 
 ;;; Specializer graph
@@ -31,40 +31,14 @@
    (generalizer       :initarg :generalizer
                       :reader  specializer-graph-generalizer)))
 
-(defmethod cl-dot:graph-object-node ((graph  specializer-graph)
-                                     (object sb-pcl:specializer))
-  (with-accessors ((generic-function specializer-graph-generic-function)
-                   (argument         specializer-graph-argument))
-      graph
-    (let ((acceptsp (specializable:specializer-accepts-p
-                     object argument))
-          (string   (specializer-label graph object)))
-      (make-instance 'cl-dot:node
-                     :attributes (list :label     string
-                                       :style     :filled
-                                       :fillcolor (if acceptsp
-                                                      "white"
-                                                      "lightgrey"))))))
+(defmethod specializer-graph-specializers ((graph specializer-graph))
+  (generic-function-nth-arg-specializers
+   (specializer-graph-generic-function graph)
+   (specializer-graph-argument-position graph)))
 
-(defmethod cl-dot:graph-object-points-to ((graph  specializer-graph)
-                                          (object sb-pcl:specializer))
-  (with-accessors ((generic-function  specializer-graph-generic-function)
-                   (argument-position specializer-graph-argument-position)
-                   (generalizer       specializer-graph-generalizer))
-      graph
-    (flet ((edgep (from to)
-             (eq '< (specializable:specializer<
-                     generic-function to from generalizer))))
-      (let* ((specializers (generic-function-nth-arg-specializers
-                            generic-function argument-position))
-             (all          (remove-if-not (curry #'edgep object) specializers)))
-        (remove-if (lambda (specializer)
-                     (some (rcurry #'edgep specializer) all))
-                   all)))))
-
-;;; Convenience interface
-
-(defun make-specializer-graph (generic-function argument-position argument)
+(defmethod make-specializer-graph ((generic-function  specializable:specializable-generic-function)
+                                   (argument-position integer)
+                                   (argument          t))
   (let ((generalizer (specializable:generalizer-of-using-class
                       generic-function argument argument-position)))
     (make-instance 'specializer-graph
@@ -73,18 +47,106 @@
                    :argument          argument
                    :generalizer       generalizer)))
 
+;;; Graph object protocol implementation
+
+(defmethod cl-dot:graph-object-node ((graph  specializer-graph)
+                                     (object sb-pcl:specializer))
+  (with-accessors ((generic-function specializer-graph-generic-function)
+                   (argument         specializer-graph-argument))
+      graph
+    (let ((acceptsp (specializable:specializer-accepts-p
+                     object argument))
+          (label    (specializer-html-label graph object)))
+      (make-instance 'cl-dot:node
+                     :attributes (list :label     `(:html () ,label)
+                                       :style     :filled
+                                       :fillcolor (if acceptsp
+                                                      "white"
+                                                      "lightgrey"))))))
+
+(defun transitive-closure (direction start all generic-function generalizer
+                           &key (min-distance 1) max-distance)
+  (let ((direction (ensure-list direction)))
+    (labels ((connectedp (direction left right)
+               (member (specializable:specializer<
+                        generic-function left right generalizer)
+                       direction))
+             (directly-connected-p (direction node all)
+               (let ((candidates (remove-if-not
+                                  (curry #'connectedp direction node) all)))
+                 (remove-if (lambda (node)
+                              (some (lambda (other)
+                                      (and (not (eq other node))
+                                           (connectedp direction other node)))
+                                    candidates))
+                            candidates))))
+      (let ((seen   (make-hash-table :test #'eq))
+            (result ()))
+        (labels ((add-closure (node &optional (distance 0))
+                   (unless (or (and max-distance (> distance max-distance))
+                               (gethash node seen))
+                     (setf (gethash node seen) t)
+                     (when (member '< direction)
+                       (mapc (rcurry #'add-closure (1+ distance))
+                             (directly-connected-p '(<) node all)))
+                     (when (>= distance (or min-distance 0))
+                       (push node result))
+                     (when (member '> direction)
+                       (mapc (rcurry #'add-closure (1+ distance))
+                             (directly-connected-p '(>) node all)))
+                     (when-let ((other (set-difference direction '(< >)) ))
+                       (mapc (rcurry #'add-closure (1+ distance))
+                             (directly-connected-p other node all))))))
+          (add-closure start))
+        result))))
+
+(defmethod cl-dot:graph-object-points-to ((graph  specializer-graph)
+                                          (object sb-pcl:specializer))
+  (with-accessors ((generic-function  specializer-graph-generic-function)
+                   (argument-position specializer-graph-argument-position)
+                   (generalizer       specializer-graph-generalizer)
+                   (specializers      specializer-graph-specializers))
+      graph
+    (labels ((attributed (target color label)
+               (make-instance 'cl-dot:attributed
+                              :object     target
+                              :attributes `(:label     ,label
+                                            :color     ,color
+                                            :weight    0
+                                            :arrowhead :none)))
+             (relation (relation color label)
+               (let* ((cluster   (transitive-closure '(< >) object specializers generic-function generalizer
+                                                   :min-distance 2))
+                      (neighbors (transitive-closure relation object cluster generic-function generalizer
+                                                     :max-distance 1)))
+                 (mapcar (rcurry #'attributed color label) neighbors)))
+             (ordered ()
+               (transitive-closure '> object specializers generic-function generalizer
+                                   :max-distance 1)))
+      (append (ordered)
+              #+no (relation '// "green")     ; disjoint
+              (relation '/= "red"    "/=")    ; distinct
+              (relation '=  "orange" "="))))) ; equal
+
+;;; Convenience interface
+
+(defun specializer-graph-title (graph)
+  (let ((*print-right-margin* most-positive-fixnum))
+    (format nil "~A ~:R arg = ~A"
+            (specializer-graph-generic-function graph)
+            (specializer-graph-argument-position graph)
+            (specializer-graph-argument graph))))
+
 (defun specializer-graph (generic-function argument-position argument output-file
-                          &rest args &key &allow-other-keys)
+                          &rest args &key title &allow-other-keys)
   (let* ((graph        (make-specializer-graph
                         generic-function argument-position argument))
+         (title        (or title (specializer-graph-title graph)))
          (specializers (generic-function-nth-arg-specializers
                         (specializer-graph-generic-function graph)
                         argument-position))
          (dot-graph    (cl-dot:generate-graph-from-roots
                         graph specializers
-                        (list :label (let ((*print-right-margin* most-positive-fixnum))
-                                       (format nil "~A ~:R arg = ~A"
-                                               (specializer-graph-generic-function graph)
-                                               (specializer-graph-argument-position graph)
-                                               (specializer-graph-argument graph)))))))
-    (apply #'cl-dot:dot-graph dot-graph output-file args)))
+                        (list :label title))))
+    (apply #'cl-dot:dot-graph dot-graph output-file
+           (remove-from-plist args :title))))
