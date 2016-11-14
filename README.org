@@ -35,6 +35,9 @@
   A detailed description can be found in the associated
   publications [fn:2][fn:3].
 
+  #+ATTR_HTML: :alt "build status image" :title Build Status :align right
+  [[https://travis-ci.org/sbcl/specializable][https://travis-ci.org/sbcl/specializable.svg]]
+
 * Provided Specializers
 
   Based on this extension, the following kinds of =specializer= s are
