@@ -1,6 +1,6 @@
 ;;;; specializable.asd --- System definition for the specializable system.
 ;;;;
-;;;; Copyright (C) 2014, 2015 Christophe Rhodes, Jan Moringen
+;;;; Copyright (C) 2014, 2015, 2016 Christophe Rhodes, Jan Moringen
 ;;;;
 ;;;; Author: Christophe Rhodes <csr21@cantab.net>
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
@@ -16,7 +16,6 @@
                  :serial t
                  :components ((:module     "pcl-patch"
                                :components ((:file       "specializer-type-specifier")
-                                            (:file       "make-method-lambda-using-specializers")
                                             (:file       "make-specializer-form-using-class"))
                                :if-feature :sbcl)
 
@@ -27,8 +26,7 @@
   :in-order-to ((test-op (test-op :specializable-test))))
 
 (defmethod perform :before ((operation load-op) (component (eql (find-system :specializable))))
-  ;; TODO change required SBCL version
-  (let ((required-version '(1 1 2)))
+  (let ((required-version '(1 3 12)))
     (flet ((lose ()
              (error "This system only work on SBCL, version ~{~D~^.~} or newer"
                     required-version)))
