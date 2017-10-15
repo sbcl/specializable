@@ -1,6 +1,6 @@
 ;;;; coverage.lisp --- Helper script for coverage report generation.
 ;;;;
-;;;; Copyright (C) 2014 Jan Moringen
+;;;; Copyright (C) 2014, 2017 Jan Moringen
 ;;;;
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
 
@@ -8,10 +8,10 @@
 
 (defun compute-coverage-for-system (system
                                     &key
-                                      (output-directory
-                                       (merge-pathnames
-                                        (concatenate 'string (string system) "/")
-                                        "coverage-report/")))
+                                    (output-directory
+                                     (merge-pathnames
+                                      (concatenate 'string (string system) "/")
+                                      "coverage-report/")))
   (flet ((set-store-coverage (storep)
            (eval `(declaim (optimize (sb-cover:store-coverage-data ,(if storep 3 0))))))
          (load-system-silently (system &rest args)
@@ -34,8 +34,8 @@
       (load-system-silently system :force t)
       (sb-cover:clear-coverage))))
 
-(mapcar #'compute-coverage-for-system
-        '(:specializable
-          :language-extension.cons-specializer
-          :language-extension.accept-specializer
-          :language-extension.prototype-specializer))
+(map nil #'compute-coverage-for-system
+     (mapcar (lambda (string)
+               (intern (string-upcase string) '#:keyword))
+             (or (rest sb-ext:*posix-argv*)
+                 (mapcar #'pathname-name (directory "*.asd")))))
