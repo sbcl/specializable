@@ -5,9 +5,7 @@
 ;;;; Author: Christophe Rhodes <csr21@cantab.net>
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
 
-(cl:in-package #:asdf-user)
-
-(defsystem :specializable
+(defsystem "specializable"
   :author      "Christophe Rhodes <csr21@cantab.net>"
   :author      "Jan Moringen <jmoringe@techfak.uni-bielefeld.de>"
   :license     "TODO"
@@ -18,26 +16,27 @@
                               (:file       "protocol")
                               (:file       "syntax")
                               (:file       "specializable"))))
-  :in-order-to ((test-op (test-op :specializable-test))))
+  :in-order-to ((test-op (test-op "specializable/test")))
+  :perform     (load-op :before (operation component)
+                 (let ((required-version '(1 3 16)))
+                   (flet ((lose ()
+                            (error "This system only works on SBCL, version ~{~D~^.~} or newer"
+                                   required-version)))
+                     #-sbcl (lose)
+                     #+sbcl
+                     (let ((version-assert (find-symbol "ASSERT-VERSION->=" :sb-ext)))
+                       (if version-assert
+                           (apply version-assert required-version)
+                           (lose)))))))
 
-(defmethod perform :before ((operation load-op) (component (eql (find-system :specializable))))
-  (let ((required-version '(1 3 16)))
-    (flet ((lose ()
-             (error "This system only works on SBCL, version ~{~D~^.~} or newer"
-                    required-version)))
-      #-sbcl (lose)
-      #+sbcl
-      (let ((version-assert (find-symbol "ASSERT-VERSION->=" :sb-ext)))
-        (if version-assert
-            (apply version-assert required-version)
-            (lose))))))
-
-(defsystem :specializable-test
+(defsystem "specializable/test"
   :author      "Jan Moringen <jmoringe@techfak.uni-bielefeld.de>"
   :author      "Christophe Rhodes <csr21@cantab.net>"
   :license     "TODO"
   :description "Unit tests of the specializable system"
-  :depends-on  (:fiveam)
+  :depends-on  ("fiveam"
+
+                "specializable")
   :components  ((:module "test"
                  :serial t
                  :components ((:file       "package")
@@ -45,7 +44,6 @@
                               (:file       "syntax")
                               (:file       "specializable")
 
-                              (:file       "examples")))) )
-
-(defmethod perform ((operation test-op) (component (eql (find-system :specializable-test))))
-  (uiop:symbol-call "SPECIALIZABLE-TEST" "RUN-TESTS"))
+                              (:file       "examples"))))
+  :perform     (test-op (operation component)
+                 (uiop:symbol-call '#:specializable-test '#:run-tests)))

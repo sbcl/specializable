@@ -4,40 +4,36 @@
 ;;;;
 ;;;; Author: Christophe Rhodes <csr21@cantab.net>
 
-(cl:in-package #:asdf-user)
-
-(defsystem :language-extension.accept-specializer
+(defsystem "language-extension.accept-specializer"
   :author      "Christophe Rhodes <csr21@cantab.net>"
   :license     "TODO"
   :description "Dispatch on accepted content types of requests in CLOS methods - SBCL ONLY"
-  :depends-on  (:specializable
-                :cl-ppcre
-                :hunchentoot)
+  :depends-on  ("specializable"
+                "cl-ppcre"
+                "hunchentoot")
   :components  ((:module     "src"
                  :pathname   "src/accept-specializer"
                  :serial     t
                  :components ((:file       "package")
                               (:file       "accept-specializer"))))
 
-  :in-order-to ((test-op (test-op :language-extension.accept-specializer-test))))
+  :in-order-to ((test-op (test-op "language-extension.accept-specializer/test"))))
 
-(defsystem :language-extension.accept-specializer-test
+(defsystem "language-extension.accept-specializer/test"
   :author      "Christophe Rhodes <csr21@cantab.net>"
   :license     "TODO"
   :description "Tests for the language-extension.accept-specializer system."
-  :depends-on  (:fiveam
+  :depends-on  ("fiveam"
 
-                :language-extension.accept-specializer
+                "language-extension.accept-specializer"
 
-                :specializable-test)
+                "specializable/test")
   :components  ((:module     "test"
                  :pathname   "test/accept-specializer"
                  :serial     t
                  :components ((:file       "package")
                               (:file       "accept-specializer")
 
-                              (:file       "examples")))))
-
-(defmethod perform ((operation test-op)
-                    (component (eql (find-system :language-extension.accept-specializer-test))))
-  (funcall (read-from-string "accept-specializer.test:run-tests")))
+                              (:file       "examples"))))
+  :perform     (test-op (operation component)
+                 (uiop:symbol-call '#:accept-specializer.test '#:run-tests)))
