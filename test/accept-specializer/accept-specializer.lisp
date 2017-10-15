@@ -98,8 +98,8 @@
                 (let ((*cn-test-after* '()))
                   (list (funcall #'cn-test input) *cn-test-after*))))
          (case expected
-           (simple-error #+later sb-pcl::no-applicable-method-error
-             (signals simple-error #+later sb-pcl::no-applicable-method-error (call)))
+           (sb-pcl::no-applicable-method-error
+            (signals sb-pcl::no-applicable-method-error (call)))
            (sb-pcl::long-method-combination-error
             (signals sb-pcl::long-method-combination-error (call)))
            (t
@@ -113,8 +113,8 @@
                   (first expected) '*cn-test-after* (second expected))))))))
 
    '(;; Not known content types
-     (:foo                              simple-error #+later sb-pcl::no-applicable-method-error)
-     (1                                 simple-error #+later sb-pcl::no-applicable-method-error)
+     (:foo                              sb-pcl::no-applicable-method-error)
+     (1                                 sb-pcl::no-applicable-method-error)
      (1.0f0                             sb-pcl::long-method-combination-error) ; no primary method
 
      ;; STRING specializer

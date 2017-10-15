@@ -1,7 +1,7 @@
 ;;;; prototype-specializer.lisp --- Unit tests for the prototype specializer.
 ;;;;
 ;;;; Copyright (C) 2013, 2014 Christophe Rhodes
-;;;; Copyright (C) 2014 Jan Moringen
+;;;; Copyright (C) 2014, 2017 Jan Moringen
 ;;;;
 ;;;; Author: Christophe Rhodes <csr21@cantab.net>
 ;;;; Author: Jan Moringen <jmoringe@techfak.uni-bielefeld.de>
@@ -108,7 +108,7 @@
          (:method ((bar (eql 5)))
            5))
 
-      (signals error (foo :no-such-method))
+      (signals sb-pcl::no-applicable-method-error (foo :no-such-method))
       (is (eq :root (foo /root/)))
       (is (eq :object (foo object)))
       (is (eq 5 (foo 5)))
