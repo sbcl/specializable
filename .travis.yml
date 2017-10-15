@@ -19,10 +19,10 @@ script:
   - ./cl
       -S '(:source-registry (:directory "'$(pwd)'") :ignore-inherited-configuration)'
       -e '(load "quicklisp/setup.lisp")'
-      -e '(ql:quickload (list :specializable :specializable-test))'
-      -e '(ql:quickload (list :language-extension.accept-specializer    :language-extension.accept-specializer-test))'
-      -e '(ql:quickload (list :language-extension.cons-specializer      :language-extension.cons-specializer-test))'
-      -e '(ql:quickload (list :language-extension.prototype-specializer :language-extension.prototype-specializer-test))'
+      -e '(ql:quickload :specializable/test)'
+      -e '(ql:quickload :language-extension.accept-specializer/test)'
+      -e '(ql:quickload :language-extension.cons-specializer/test)'
+      -e '(ql:quickload :language-extension.prototype-specializer/test)'
       '(or (and (specializable-test:run-tests)
                 (accept-specializer.test:run-tests)
                 (cons-specializer.test:run-tests)
