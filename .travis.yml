@@ -6,23 +6,23 @@ env: PREFIX="$(pwd)/sbcl"
      SBCL_OPTIONS="--noinform --no-userinit"
 
 install:
-  - curl -L sbcl.tar.bz2 "${SBCL_DOWNLOAD_URL}" | tar -xj
+  - curl -L "${SBCL_DOWNLOAD_URL}" | tar -xj
   - ( cd sbcl-* && INSTALL_ROOT="${PREFIX}" sh install.sh )
 
   - curl -o cl "${CL_LAUNCH_DOWNLOAD_URL}"
   - chmod +x cl
 
   - curl -o quicklisp.lisp "${QUICKLISP_DOWNLOAD_URL}"
-  - ./cl -L quicklisp.lisp '(quicklisp-quickstart:install :path "quicklisp/")'
+  - ./cl -L quicklisp.lisp '(quicklisp-quickstart:install)'
 
 script:
   - ./cl
       -S '(:source-registry (:directory "'$(pwd)'") :ignore-inherited-configuration)'
-      -e '(load "quicklisp/setup.lisp")'
-      -e '(ql:quickload :specializable/test)'
-      -e '(ql:quickload :language-extension.accept-specializer/test)'
-      -e '(ql:quickload :language-extension.cons-specializer/test)'
-      -e '(ql:quickload :language-extension.prototype-specializer/test)'
+      -Q
+      -s specializable/test
+      -s language-extension.accept-specializer/test
+      -s language-extension.cons-specializer/test
+      -s language-extension.prototype-specializer/test
       '(or (and (specializable-test:run-tests)
                 (accept-specializer.test:run-tests)
                 (cons-specializer.test:run-tests)
